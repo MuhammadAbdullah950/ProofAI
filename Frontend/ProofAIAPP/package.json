@@ -1,0 +1,92 @@
+{
+  "name": "proofai_frontend",
+  "version": "1.0.0",
+  "description": "ProofAI Desktop Application",
+  "main": "main.js",
+  "homepage": "./",
+  "author": {
+    "name": "ProofAI",
+    "email": "your-email@example.com"
+  },
+  "scripts": {
+    "start": "concurrently \"npm run electron\" \"npm run start --prefix proofai_frontend\"",
+    "electron": "electron .",
+    "build-react": "cd proofai_frontend && npm run build",
+    "build": "npm run build-react && electron-builder",
+    "package": "npm run build-react && electron-builder --dir",
+    "dist": "npm run build-react && electron-builder --win",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "glob": "^10.4.5",
+    "install": "^0.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "electron": "^32.1.2",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.proofai.desktop",
+    "productName": "ProofAI",
+    "asar": false,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      {
+        "from": "proofai_frontend/build",
+        "to": "proofai_frontend/build"
+      },
+      "Electron-Framework/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "./",
+        "to": "./",
+        "filter": [
+          "main.exe"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ProofAI",
+      "uninstallDisplayName": "ProofAI",
+      "artifactName": "ProofAI-Setup-${version}.${ext}"
+    },
+    "publish": {
+      "provider": "generic",
+      "url": ""
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "ISC",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
