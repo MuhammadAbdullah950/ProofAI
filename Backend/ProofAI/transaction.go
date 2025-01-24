@@ -746,51 +746,72 @@ func MineTransaction(transaction *Transaction, block *Block) {
 		fmt.Println("Transaction signature is valid")
 	}
 
-	currentdir := os.TempDir()
+	// Determine the directory path
+	currentDir := os.TempDir()
+	// add time stamp with the directory
+	dirPath := filepath.Join(currentDir, ProofAI.modelExecutionDir + time.Now().Format("20060102150405"))  
+	fmt.Println("Directory path: ", dirPath)
 
-	fmt.Println(" Directory: ", ProofAI.modelExecutionDir)
-	dirPath := filepath.Join(currentdir, ProofAI.modelExecutionDir)
-	fmt.Println(" Directory: ", dirPath)
+	// Check if the directory exists and remove it
 	if _, err := os.Stat(dirPath); err == nil {
+		// Directory exists; remove it
 		if err := os.RemoveAll(dirPath); err != nil {
-			fmt.Printf("err 1:   %v\n", err)
+			fmt.Printf("Error removing existing directory: %v\n", err)
 			return
 		}
+		fmt.Println("Existing directory removed")
 	} else if !os.IsNotExist(err) {
-		fmt.Printf(" err 2 :  %v", err)
+		// Unexpected error
+		fmt.Printf("Error checking directory existence: %v\n", err)
+		
 		return
 	}
 
-	fmt.Println(" Directory: ", ProofAI.modelExecutionDir)
-
-	if err := os.Mkdir(ProofAI.modelExecutionDir, 0755); err != nil {
-		fmt.Printf(" err3 :  %v\n", err)
+	// Create a fresh directory
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		fmt.Printf("Error creating directory: %v\n", err)
+		cleanDir(dirPath )
 		return
 	}
+	fmt.Println("Directory created successfully")
 
-	fmt.Println(" Directory: ", ProofAI.modelExecutionDir)
-
-	err = downloadFromIPFS(transaction.Input_dataSet, ProofAI.modelExecutionDir+"/dataset")
+	// Download dataset and model to the specified directory
+	err = downloadFromIPFS(transaction.Input_dataSet, filepath.Join(dirPath, "dataset"))
 	if err != nil {
 		log.Fatalf("Error downloading dataset from IPFS: %v", err)
+		cleanDir(dirPath )
 		return
 	}
 
-	err = downloadFromIPFS(transaction.Input_model, ProofAI.modelExecutionDir+"/model")
+	err = downloadFromIPFS(transaction.Input_model, filepath.Join(dirPath, "model"))
 	if err != nil {
 		log.Fatalf("Error downloading model from IPFS: %v", err)
+		cleanDir(dirPath )
 		return
 	}
 
-	modelOutput, err := modelExecution()
+	// Execute the model and update the transaction
+	modelOutput, err := modelExecution(dirPath)
 	if err != nil {
-		fmt.Printf("%v", err)
+		fmt.Printf("Error during model execution: %v\n", err)
+		cleanDir(dirPath )
+		return
 	}
-
 	transaction.Model_output = modelOutput
 	block.Transactions = append(block.Transactions, *transaction)
 	fmt.Println("Mining Transaction Completed")
+
+	cleanDir(dirPath ) 
+	
 }
+
+func cleanDir(dirpath string) {
+	if err := os.RemoveAll(dirpath); err != nil {
+		fmt.Printf("Error removing directory at cleanup: %v\n", err)
+		return
+	}
+	fmt.Println("Temporary directory cleaned up")}
+
 
 /*
 userTransaction is a function to create a transaction for the user

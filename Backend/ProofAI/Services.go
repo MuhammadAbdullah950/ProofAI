@@ -162,7 +162,8 @@ func handleGetCurrentlyMiningBlock(w http.ResponseWriter, r *http.Request) {
 
 	if ProofAI.currentlyMiningBlockForUser.Transactions != nil {
 		response := map[string]interface{}{"block": ProofAI.currentlyMiningBlockForUser}
-		fmt.Println("Response ", response)
+	//
+	//	fmt.Println("Response ", response)
 		json.NewEncoder(w).Encode(response)
 	} else {
 		response := map[string]interface{}{"block": "null"}

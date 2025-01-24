@@ -21,20 +21,20 @@ function App() {
 
   // Handle logout functionality
   const handleLogout = async () => {
-    const response = await ProofAiService.getCurrentlyMinBlock();
-    if (response.block !== "null") {
-      const userConfirmation = window.confirm("Do you want to continue with the current mining block?");
-      if (!userConfirmation) return;
-    }
+    // const response = await ProofAiService.getCurrentlyMinBlock();
+    // if (response.block !== "null") {
+    //   const userConfirmation = window.confirm("Do you want to continue with the current mining block?");
+    //   if (!userConfirmation) return;
+    // }
 
-    const response1 = await ProofAiService.logout();
-    if (response1.error) {
-      showAlert(response1.error, "danger");
-      return;
-    }
+    // const response1 = await ProofAiService.logout();
+    // if (response1.error) {
+    //   showAlert(response1.error, "danger");
+    //   return;
+    // }
 
-    navigate('/Login');
-    window.location.reload();
+    // navigate('/Login');
+    // window.location.reload();
   };
 
   // Function to set service machine address with modal

@@ -3,12 +3,13 @@ import { useProofAiService } from "../ProofaiServiceContext";
 
 const Header = ({ handleLogout }) => {
     const ProofAiService = useProofAiService();
-    const [role, setRole] = React.useState('Miner');
+    const [role, setRole] = React.useState(true);
 
 
     const handleRoleChange = async (e) => {
         const minerRole = e.target.value;
         const response = await ProofAiService.setRole(minerRole);
+        alert(response);
         if (response.error) {
             alert(response.error);
             setRole(role);

@@ -60,67 +60,64 @@ virtualEnvironment is a function to create a virtual environment and execute the
     And you need to put all the requirements in the requirements.txt file. And the model.py file should be in the model directory.
     And for data you can use the dataset directory.
 */
-func modelExecution() ([]byte, error) {
-
+func modelExecution(dirPath string) ([]byte, error) {
+	
 	timestamp := time.Now().Format("02_01_15_04_05") // day_month_hour_min_sec
 	logFileName := fmt.Sprintf("%s_TransactionLog.txt", timestamp)
 	logFile, err := os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, err
 	}
-	logFile.Sync()
 	defer logFile.Close()
+	logFile.Sync()
 
+	// Initialize logger
 	logger := log.New(logFile, "", log.LstdFlags)
 
-	dirName := "virtualEnvironment"
-	curr, _ := os.Getwd()
-	dirPath := filepath.Join(ProofAI.modelExecutionDir, dirName)
-	if _, err := os.Stat(dirPath); err == nil {
-		if err := os.RemoveAll(dirPath); err != nil {
-			logger.Printf("Failed to remove existing directory: %v", err)
-			return nil, err
-		}
-	} else if !os.IsNotExist(err) {
-		logger.Printf("Error checking existing directory: %v", err)
-		return nil, err
-	}
+	// Define the virtual environment directory
+	virtualEnvDir := filepath.Join(dirPath, "virtualEnvironment")
 
-	if err := os.Mkdir(dirPath, 0755); err != nil {
+	
+	if err := os.Mkdir(virtualEnvDir, 0777); err != nil {
 		logger.Printf("Failed to create directory: %v", err)
 		return nil, err
 	}
 
-	if err := os.Chdir(dirPath); err != nil {
+	 currentdir, err := os.Getwd()
+	 if err != nil {
+		logger.Printf("Failed to get current working directory: %v", err)
+		return nil, err
+	 }
+
+	if err := os.Chdir(virtualEnvDir); err != nil {
 		logger.Printf("Failed to change directory: %v", err)
 		return nil, err
 	}
-	logger.Printf("%s directory is created\n", dirName)
+	logger.Printf("Directory %s is created and in use\n", virtualEnvDir)
 
+	// Execute commands for virtual environment setup and model execution
 	runCommand("python -m venv Env", logger)
 	runCommand(".\\Env\\Scripts\\activate", logger)
 	runCommand(".\\Env\\Scripts\\activate && pip install -r ../model/requirements.txt", logger)
 
+	// Execute the Python model script
 	model, err := runPythonFile(".\\Env\\Scripts\\activate && python ../model/model.py ../dataset/ ../model/knn_model.pkl", logger)
-
 	if err != nil {
 		logger.Printf("Failed to execute the Python model script: %v", err)
 		return nil, err
 	}
 
-	// Return to the original working directory
-	if err := os.Chdir(curr); err != nil {
+	// now move back to the original directory
+	if err := os.Chdir(currentdir); err != nil {
 		logger.Printf("Failed to change directory: %v", err)
-		return nil, err
-	}
-
-	if err := os.RemoveAll(dirPath); err != nil {
-		logger.Printf("Failed to remove directory: %v", err)
 		return nil, err
 	}
 
 	return model, nil
 }
+
+
+
 
 /*
 runCommand is a function to run a command in the command prompt

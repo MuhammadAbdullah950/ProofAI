@@ -56,22 +56,6 @@ function createWindow() {
 
 
 
-// app.whenReady().then(() => {
-//   console.log('App directory:', app.getAppPath());
-//   console.log('Resource path:', process.resourcesPath);
-
-//   mainWindow = createWindow();
-
-// });
-
-
-// function startBackend() {
-//   let backendPath;
-//   let backendOutput = '';
-
-
-//   return null;
-// }
 
 function startBackend() {
 

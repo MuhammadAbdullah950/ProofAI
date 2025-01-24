@@ -176,6 +176,6 @@ func main() {
 	http.HandleFunc("/machines", server.handleGetMachines)
 	http.HandleFunc("/machine", server.handleAddMachine)
 
-	fmt.Println("Server starting on 0.0.0.0:8081...")
+	fmt.Println("IPChainManager start listening on 0.0.0.0:8081...")
 	http.ListenAndServe("0.0.0.0:8081", nil)
 }

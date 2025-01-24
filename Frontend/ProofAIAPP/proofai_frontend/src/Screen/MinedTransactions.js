@@ -6,7 +6,7 @@ import { useAlert } from "../Context/AlertContext";
 
 // facing null error during getting blocks , need to send [] instead of null
 const MinedTransactions = () => {
-    const { showAlert } = useAlert();
+    const { showAlert, hideAlert } = useAlert();
     const navigate = useNavigate();
     const ProofAiService = useProofAiService();
     const [minedBlock, setMinedBlock] = React.useState([]);
@@ -44,6 +44,7 @@ const MinedTransactions = () => {
     }, []);
 
     const handleBack = () => {
+        hideAlert();
         window.history.back();
     };
 
@@ -85,9 +86,15 @@ const MinedTransactions = () => {
                                 <option
                                     key={transaction.transactionId}
                                     value={JSON.stringify(transaction)}
+                                    style={{
+                                        whiteSpace: "pre-wrap",
+                                        wordWrap: "break-word",
+                                        overflowWrap: "anywhere",
+                                    }}
                                 >
                                     Transaction = Nonce: {transaction.nonce}, From: {transaction.from}
                                 </option>
+
                             ))
                         ) : (
                             <option disabled>No transactions</option>
