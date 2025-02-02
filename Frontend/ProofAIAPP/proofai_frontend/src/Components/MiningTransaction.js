@@ -13,26 +13,20 @@ const MiningTransaction = ({ setmineTransaction, transactionJson }) => {
 
     const [isTransactionMined, setisTransactionMined] = React.useState(false);
     const [intervalId, setIntervalId] = React.useState(null);
-
     const proofAiService = useProofAiService();
 
     const chkTransactionStatus = async () => {
-
         const response = await proofAiService.transactionConfirmation(transactionJson.from, transactionJson.nonce);
         if (response.transaction === "Confirmed") {
             setisTransactionMined(true);
-
         } else {
             alert("Transaction is not mined yet")
         }
     }
 
-
-
     return (
         <div style={styles.container}>
             <h1 style={styles.label}>Mining Transaction</h1>
-
             {!isTransactionMined &&
                 <>
                     <div style={styles.loaderContainer}>
@@ -49,7 +43,6 @@ const MiningTransaction = ({ setmineTransaction, transactionJson }) => {
                     </div>
                 </>
             }
-
             {isTransactionMined && <FaCheckCircle color="green" size={20} />}
             <div style={{ display: "flex", gap: "10px" }} >
                 <button style={styles.button} onClick={chkTransactionStatus}>Check Status</button>
@@ -71,8 +64,8 @@ const styles = {
         backgroundColor: "rgb(152, 156, 158)",
         borderRadius: '10px',
         boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        width: '80%', // Increased width for better flexibility
-        maxWidth: '1200px', // Limit the maximum width
+        width: '80%',
+        maxWidth: '1200px',
         margin: 'auto',
         marginTop: '60px',
     },
@@ -90,14 +83,14 @@ const styles = {
     },
     jsonBox: {
         width: '100%',
-        height: '300px', // Fixed height for the scrollable container
+        height: '300px',
         padding: '10px',
         backgroundColor: '#282c34',
         borderRadius: '5px',
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-        overflowY: 'auto', // Enable vertical scrolling
-        overflowX: 'auto', // Enable horizontal scrolling
-        wordWrap: 'break-word', // Prevent long text from breaking the layout
+        overflowY: 'auto',
+        overflowX: 'auto',
+        wordWrap: 'break-word',
     },
     button: {
         padding: '10px 20px',

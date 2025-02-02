@@ -11,19 +11,15 @@ const IPFS = ({ setipfsCont }) => {
 
     const ProofAiService = useProofAiService();
     const { showAlert } = useAlert();
-
     const handleBackButton = () => setipfsCont(false);
 
     const handleUpload = async (event) => {
         setIpfsContent(false);
         setUploadResponse("");
         const files = event.target.files;
-
         if (!files.length) return;
-
         const data = new FormData();
-        Array.from(files).forEach(file => data.append("file", file));
-
+        Array.from(files).forEach(file => data.append("files", file));
         setWaitingIcon(true);
 
         try {
@@ -37,6 +33,7 @@ const IPFS = ({ setipfsCont }) => {
             }
         } catch (error) {
             setWaitingIcon(false);
+            alert(error)
             showAlert("An unexpected error occurred during upload.", "error");
         }
     };

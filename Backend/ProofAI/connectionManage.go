@@ -1,15 +1,19 @@
 package main
 
 /*
-  In this file we have the connection management functions
-  And we have the MachineDetail struct which is used to store the details of a machine
-  And we have the getRandomMiner function which is used to get a random miner from the service machine
-  And we have the registerMiner function which is used to register a miner with the service machine
-  And we have the establishConnection function which is used to establish a connection with the service machine
-  And we have the connectToMiner function which is used to connect to a miner
-  And we have the writeToConnection function which is used to write to a connection
-  And we have the handleConnection function which is used to handle a connection
-  And we have the getRadminIPv4 function which is used to get the IPv4 address of the Radmin VPN
+	In this file we manage the connection with the service machine and the miners.
+	New miners are registered with the service machine. And then miners are connected to each other.
+	Every miner listens for incoming connections and establishes a communication connection with other miners.
+	And after connection is established, miners create a new communication port for communication with each other.
+	1. MachineDetail: struct to store the details of a machine
+	2. ChainInfo: struct to store the chain information
+	3. getRadminIPv4: function to get the IPv4 address of the Radmin VPN
+	4. getRandomMiner: function to get a random miner from the service machine
+	5. registerMiner: function to register a miner with the service machine
+	6. establishConnection: function to establish a connection with the service machine
+	7. connectToMiner: function to connect to a miner
+	8. writeToConnection: function to write to a connection
+	9. handleConnection: function to handle a connection
 
 */
 
@@ -26,6 +30,24 @@ import (
 	"strings"
 	"time"
 )
+
+/*
+MachineDetail is a struct to store the details of a machine
+*/
+type MachineDetail struct {
+	IP        string    `json:"ip"`
+	Port      string    `json:"port"`
+	PubKey    string    `json:"pubKey"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+/*
+ChainInfo is a struct to store the chain information
+*/
+type ChainInfo struct {
+	PowLen int `json:"powLen"`
+	Proof  int `json:"proof"`
+}
 
 /*
 getRadminIPv4 is a function to get the IPv4 address of the Radmin VPN
@@ -62,20 +84,6 @@ func getRadminIPv4() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("RadminVPN IPv4 address not found")
-}
-
-/*
-MachineDetail is a struct to store the details of a machine
- 1. IP: IP address of the machine
- 2. Port: port of the machine
- 3. PubKey: public key of the machine
- 4. Timestamp: timestamp of the machine registration
-*/
-type MachineDetail struct {
-	IP        string    `json:"ip"`
-	Port      string    `json:"port"`
-	PubKey    string    `json:"pubKey"`
-	Timestamp time.Time `json:"timestamp"`
 }
 
 /*
@@ -139,10 +147,25 @@ func registerMiner(serverURL, ip, port, pubKeyStr string) error {
 	if err != nil {
 		return fmt.Errorf("failed to register miner: %v", err)
 	}
+
+	var chainInfo ChainInfo
+	err = json.NewDecoder(resp.Body).Decode(&chainInfo)
+	if err != nil {
+		return fmt.Errorf("failed to decode response of Service Machine to Set ChainInfo : %v", err)
+	}
+
+	ProofAI.selfMiningDetail.blockLength = chainInfo.PowLen
+	ProofAI.selfMiningDetail.powLenght = chainInfo.Proof
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("server returned status: %d", resp.StatusCode)
+	}
+
+	if !ProofAI.selfMiningDetail.readLedger {
+		ReadAndWriteMemoryTransaction()
+		ProofAI.selfMiningDetail.readLedger = true
 	}
 	return nil
 }
@@ -182,12 +205,12 @@ func establishConnection(port string) {
 
 	IP := "0.0.0.0"
 	ln, err := net.Listen("tcp", IP+":"+port)
+	ProofAI.selfMiningDetail.connListen = ln
+
 	if err != nil {
 		log.Fatalf("Error listening: %v", err)
 	}
 	defer ln.Close()
-
-	fmt.Printf("\n    Miner is successfully running at: %s   \n\n", machineIP)
 
 	for {
 
@@ -202,14 +225,15 @@ func establishConnection(port string) {
 		if err != nil {
 			return
 		}
+
 		conn, err := ln.Accept()
 		if err != nil {
 			log.Printf("Error accepting connection: %v\n", err)
+			return
 		} else {
 
 			fmt.Printf("\n\n")
 			miner := newMiner(conn)
-			fmt.Println("Connection established with :", conn.RemoteAddr())
 
 			addr := miner.conn.RemoteAddr().String()
 			parts := strings.Split(addr, ":")
@@ -226,7 +250,6 @@ func establishConnection(port string) {
 			} else {
 
 				go func() {
-
 					commConn, err := commLn.Accept()
 					if err != nil {
 						log.Printf("Error establishing communication connection with: %s at port: %s ", parts[0], parts[1])
@@ -234,10 +257,7 @@ func establishConnection(port string) {
 					} else {
 						miner.conn = commConn
 						ProofAI.Miners = append(ProofAI.Miners, *miner)
-						fmt.Printf("Communication connection establish with %s \n", miner.conn.RemoteAddr())
-						fmt.Printf("\n\n")
 						go readTransaction(miner)
-
 						ProofAI.startPort++
 					}
 				}()
@@ -245,6 +265,7 @@ func establishConnection(port string) {
 			}
 		}
 	}
+
 }
 
 /*
@@ -326,8 +347,6 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	miner := newMiner(conn)
-	fmt.Println("Connection established with:", conn.RemoteAddr())
-
 	addr := miner.conn.RemoteAddr().String()
 	parts := strings.Split(addr, ":")
 
@@ -359,7 +378,6 @@ func handleConnection(conn net.Conn) {
 
 	miner.conn = commConn
 	ProofAI.Miners = append(ProofAI.Miners, *miner)
-	fmt.Printf("Communication connection established with %s\n", miner.conn.RemoteAddr())
 
 	go readTransaction(miner)
 	ProofAI.startPort++

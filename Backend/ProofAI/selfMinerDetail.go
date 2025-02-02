@@ -1,13 +1,16 @@
 package main
 
 /*
-  In this file we have the selfMinerDetail function which is used to create a new miner object and generate keys.
-  And we have the hexToPublicKey function which is used to convert hex string to public key.
-  And we have the newMiner function which is used to create a new miner object.
-  And we have the generateKeys function which is used to generate public and private keys.
-  And we have the keyToHex function which is used to convert public and private key to hex string.
-  And we have the keyVerification function which is used to verify the public and private key.
-  And we have the hexToPrivateKey function which is used to convert hex string to private key.
+  In this file we store the miner details. And also we have functions to generate keys, convert keys to hex, verify keys, convert hex to keys.
+  1-		Miner is a struct to store the miner details
+  2-		selfMiner is a struct to store the self miner details
+  3-		MemPool is a struct to store the memory pool details
+  4-		hexToPublicKey is a function to convert hex string to public key
+  5-		newMiner is a function to create a new miner object
+  6-		generateKeys is a function to generate public and private keys
+  7-		keyToHex is a function to convert public and private key to hex string
+  8-		keyVerification is a function to verify the public and private key
+  9-		hexToPrivateKey is a function to convert hex string to private key
 */
 
 import (
@@ -20,6 +23,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"sync"
 )
 
 /*
@@ -38,18 +42,6 @@ type Miner struct {
 
 /*
 selfMiner is a struct to store the self miner details
- 1. pubKey: public key of the miner
- 2. prvKey: private key of the miner
- 3. pubKeyStr: public key in hex format
- 4. prvKeyStr: private key in hex format
- 5. nonce: nonce of the miner
- 6. context: context object
- 7. cancel: cancel function
- 8. CurrentlyMineBlock: block currently being mined
- 9. interuptStatus: status of the interupt
- 10. role: role of the miner
- 11. connectionAlive: status of the connection
- 12. serviceMachineAddr: address of the service machine
 */
 type selfMiner struct {
 	pubKey             *ecdsa.PublicKey
@@ -64,11 +56,18 @@ type selfMiner struct {
 	role               string
 	connectionAlive    bool
 	serviceMachineAddr string
+	transactionFile    string
+	connListen         net.Listener
+	mu                 sync.Mutex
+	blockLength        int
+	powLenght          int
+	LedgerFile         string
+	readLedger         bool
 }
 
 /*
 MemPool is a struct to store the memory pool details
- 1. transactions: list of transactions
+transactions: list of transactions
 */
 type MemPool struct {
 	transactions []Transaction
@@ -76,8 +75,8 @@ type MemPool struct {
 
 /*
 hexToPublicKey is a function to convert hex string to public key
- 1. hexStr: hex string
- 2. returns public key and error
+hexStr: hex string
+returns public key and error
 */
 func hexToPublicKey(hexStr string) (*ecdsa.PublicKey, error) {
 
@@ -121,7 +120,7 @@ func newMiner(conn net.Conn) *Miner {
 
 /*
 generateKeys is a function to generate public and private keys
- 1. returns public key, private key and error
+returns public key, private key and error
 */
 func generateKeys() (*ecdsa.PublicKey, *ecdsa.PrivateKey, error) {
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

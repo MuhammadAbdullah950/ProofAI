@@ -1,5 +1,5 @@
 const { spawn } = require('child_process');
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, ipcMain, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -7,10 +7,13 @@ let mainWindow;
 let backendProcess;
 let isQuitting = false;
 
-// why this start window in inspect mode becuase of this line win.webContents.openDevTools();
+ipcMain.on("restart-app", () => {
+  app.relaunch();
+  app.quit();
+});
 
 function createWindow() {
-  const win = new BrowserWindow({ // how to define minimum window size and maximum window size. Solution
+  const win = new BrowserWindow({
 
     minHeight: 600,
     minWidth: 900,
@@ -29,7 +32,6 @@ function createWindow() {
   win.setTitle('ProofAI');
 
   if (!app.isPackaged) {
-    // win.webContents.openDevTools();
     win.loadFile('Electron-Framework/waiting.html');
 
     const pollServer = () => {
@@ -53,22 +55,17 @@ function createWindow() {
   return win;
 }
 
-
-
-
-
 function startBackend() {
 
   let backendPath;
   let backendOutput = '';
 
   if (app.isPackaged) {
-    // Try multiple locations in production
     const possiblePaths = [
-      path.join(process.resourcesPath, 'main.exe'),
-      path.join(app.getAppPath(), 'main.exe'),
-      path.join(process.resourcesPath, 'app', 'main.exe'),
-      path.join(app.getPath('exe'), '..', 'main.exe')
+      path.join(process.resourcesPath, 'ProoAiBackend.exe'),
+      path.join(app.getAppPath(), 'ProoAiBackend.exe'),
+      path.join(process.resourcesPath, 'app', 'ProoAiBackend.exe'),
+      path.join(app.getPath('exe'), '..', 'ProoAiBackend.exe')
     ];
 
     for (const testPath of possiblePaths) {
@@ -79,7 +76,7 @@ function startBackend() {
       }
     }
   } else {
-    backendPath = path.join(__dirname, 'main.exe');
+    backendPath = path.join(__dirname, 'ProoAiBackend.exe');
   }
 
   if (!backendPath || !fs.existsSync(backendPath)) {
@@ -89,9 +86,6 @@ function startBackend() {
     return null;
   }
 
-  console.log('Starting backend from:', backendPath);
-
-  // Create a debug log file
   const logPath = path.join(app.getPath('userData'), 'backend.log');
   const logStream = fs.createWriteStream(logPath, { flags: 'a' });
 
@@ -100,14 +94,12 @@ function startBackend() {
     detached: false,
     env: {
       ...process.env,
-      ELECTRON_BACKEND: '1',  // Add this flag to indicate running from Electron
-      PATH: process.env.PATH  // Ensure PATH is properly passed
+      ELECTRON_BACKEND: '1',
+      PATH: process.env.PATH
     },
-    cwd: path.dirname(backendPath)  // Set working directory to backend location
+    cwd: path.dirname(backendPath)
   });
 
-  // Log process details
-  console.log('Backend process started with PID:', proc.pid);
   logStream.write(`Started backend process with PID: ${proc.pid}\n`);
 
   proc.stdout.on('data', (data) => {
@@ -137,13 +129,11 @@ function startBackend() {
     logStream.write(`Process exited with code ${code} and signal ${signal}\n`);
 
     if (!isQuitting && code !== 0) {
-      // Show the error and output
       dialog.showErrorBox(
         'Backend Error',
         `Backend process exited unexpectedly.\nExit code: ${code}\nSignal: ${signal}\n\nOutput:\n${backendOutput}`
       );
 
-      // Try to restart the backend after a delay
       setTimeout(() => {
         if (!isQuitting) {
           console.log('Attempting to restart backend...');
@@ -194,7 +184,6 @@ app.on('window-all-closed', () => {
   }
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception:', error);
   if (!isQuitting) {

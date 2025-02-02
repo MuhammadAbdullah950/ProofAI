@@ -17,13 +17,11 @@ const MinedTrasnaction = ({ handleToggleTransactions }) => {
         handleToggleTransactions()
     }
 
-
     return (
         <div >
             <h1 style={styles.label} >Mined Transactions</h1>
             <ReactJson src={jsonData} theme="monokai" collapsed={false} displayDataTypes={false} />
             <button style={styles.button} onClick={handleBack} >Back</button>
-
         </div>
     );
 }
@@ -37,7 +35,6 @@ const styles = {
         fontWeight: 'bold',
         color: '#333',
         textAlign: 'center',
-
     },
 
     box: {

@@ -9,46 +9,66 @@ import MinedTransaction from './Screen/MinedTransaction';
 import CurrentlyBlock from "./Screen/CurrentlyBlock";
 import { useProofAiService } from "./ProofaiServiceContext";
 import { useAlert } from "./Context/AlertContext";
+import path from 'path-browserify';
+import UserInstructions from './Screen/UserInstructions';
+
+const { ipcRenderer } = window.require("electron");
+
 
 function App() {
   const navigate = useNavigate();
   const ProofAiService = useProofAiService();
-  const { showAlert } = useAlert();
+  const { showAlert, hideAlert } = useAlert();
 
   const [isServiceAddressSet, setIsServiceAddressSet] = useState(false);
-  const [serviceMachineAddr, setServiceMachineAddr] = useState(""); // State for the service address modal visibility and input
+  const [serviceMachineAddr, setServiceMachineAddr] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [serviceButtondisable, setServiceButtondisable] = useState(false);
 
-  // Handle logout functionality
+
+
   const handleLogout = async () => {
-    // const response = await ProofAiService.getCurrentlyMinBlock();
-    // if (response.block !== "null") {
-    //   const userConfirmation = window.confirm("Do you want to continue with the current mining block?");
-    //   if (!userConfirmation) return;
-    // }
+    hideAlert();
+    const response = await ProofAiService.getCurrentlyMinBlock();
+    if (response.error) {
+      showAlert(response.error, "error");
+      return;
+    }
 
-    // const response1 = await ProofAiService.logout();
-    // if (response1.error) {
-    //   showAlert(response1.error, "danger");
-    //   return;
-    // }
+    if (response.block !== "null") {
+      const userConfirmation = window.confirm("Do you want to continue with the current mining block?");
+      if (!userConfirmation) return;
+    }
 
-    // navigate('/Login');
-    // window.location.reload();
+    const response1 = await ProofAiService.logout();
+    if (response1.error) {
+      showAlert(response1.error, "danger");
+      return;
+    }
+
+    sessionStorage.clear();
+    ipcRenderer.send("restart-app");
   };
 
-  // Function to set service machine address with modal
   const handleSetServiceMachineAddr = async () => {
+    setServiceMachineAddr(serviceMachineAddr.trim());
+    setServiceButtondisable(true);
+    hideAlert();
+    const pingResponse = await ProofAiService.pingServiceMachineAddr(serviceMachineAddr);
+    if (pingResponse.error) {
+      showAlert(pingResponse.error, "error");
+      setServiceButtondisable(false);
+      return;
+    }
 
     const response = await ProofAiService.setServiceMachineAddr(serviceMachineAddr);
     setIsServiceAddressSet(true);
     setShowModal(false);
-
+    setServiceButtondisable(false);
   };
 
 
   useEffect(() => {
-    // Automatically show modal to set the service address on initial load
     setShowModal(true);
   }, []);
 
@@ -60,6 +80,7 @@ function App() {
     { path: '/MinedTransactions', element: <MinedTransactions /> },
     { path: '/MinedTransaction', element: <MinedTransaction /> },
     { path: '/CurrentlyBlock', element: <CurrentlyBlock /> },
+    { path: '/UserInstructions', element: <UserInstructions /> }
   ];
 
   return (
@@ -67,7 +88,8 @@ function App() {
       {showModal && (
         <div className="modal">
           <div className="modal-content">
-            <h2>Enter Service Machine Address</h2>
+            <h2>Enter Service Machine Address </h2>
+            <p>Address Eg: 127.0.0.1:0000</p>
             <input
               type="text"
               placeholder="Enter Address"
@@ -75,8 +97,7 @@ function App() {
               onChange={(e) => setServiceMachineAddr(e.target.value)}
             />
             <div className="modal-actions">
-              <button onClick={handleSetServiceMachineAddr}>Submit</button>
-              <button onClick={() => setShowModal(false)}>Cancel</button>
+              <button onClick={handleSetServiceMachineAddr} disabled={isServiceAddressSet}  >Submit</button>
             </div>
           </div>
         </div>

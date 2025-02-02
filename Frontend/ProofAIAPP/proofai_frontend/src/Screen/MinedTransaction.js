@@ -7,16 +7,72 @@ const MinedTransaction = ({ }) => {
 
     const [showTransaction, setShowTransaction] = React.useState(false);
     const location = useLocation();
-    const { transaction } = location.state; // Access the passed transaction
+    const { transaction } = location.state;
+    const [isDiabled, setisDiabled] = React.useState(false);
 
+    React.useEffect(() => {
+        if (transaction?.type === "block") {
+            setisDiabled(true);
+        }
+    }, [transaction])
 
     const handleBack = () => {
         window.history.back();
     };
 
-    const handleDownload = () => {
+    const handleModelDownload = () => {
+        try {
+            if (!transaction.model_output) {
+                alert("Model output is missing.");
+                return;
+            }
+            const jsonString = atob(transaction.model_output);
+            let jsonData;
+            try {
+                jsonData = JSON.parse(jsonString);
+            } catch (e) {
+                alert("Error parsing JSON: " + e.message);
+                return;
+            }
+
+            if (jsonData.error) {
+                alert("Error in model file: " + jsonData.error);
+                return;
+            }
+
+            if (!jsonData.model) {
+                alert("Model data is missing.");
+                return;
+            }
+            let binaryString;
+            try {
+                binaryString = atob(jsonData.model);
+            } catch (e) {
+                alert("Error decoding model data: " + e.message);
+                return;
+            }
+
+            const byteArray = Uint8Array.from(binaryString, c => c.charCodeAt(0));
+            const blob = new Blob([byteArray], { type: 'application/octet-stream' });
+            const url = window.URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'modeFile.pkl';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("An unexpected error occurred: " + e.message);
+            console.error("Unexpected error:", e);
+        }
+    };
+
+
+    const handlTransactionLogDownload = () => {
         // Download the transaction data
-        const modelData = atob(transaction.model_output); // Decode base64 string
+        const modelData = atob(transaction.transactionLog); // Decode base64 string
         const byteArray = new Uint8Array(modelData.length);
 
         // Convert string to byte array
@@ -31,29 +87,25 @@ const MinedTransaction = ({ }) => {
         // Create a temporary anchor element to trigger the download
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'model_file.pkl'; // Specify the file name here
+        a.download = 'TransactionLogs.txt'; // Specify the file name here
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
     };
 
-
-
     return (
         <div style={styles.container}>
             <div style={styles.headerContainer}>
                 <h1 style={styles.header}>Mined Transactions</h1>
                 <div style={{ display: "flex", gap: "10px" }}>
-                    <label style={styles.dropdown} onClick={handleDownload}>
+                    <label style={{ ...styles.dropdown, pointerEvents: isDiabled ? "none" : "auto", opacity: isDiabled ? 0.5 : 1 }} onClick={!isDiabled ? handleModelDownload : undefined}>
                         Download Trained Model <FaDownload />
                     </label>
-                    <label style={styles.dropdown} onClick={handleDownload}>
+                    <label style={{ ...styles.dropdown, pointerEvents: isDiabled ? "none" : "auto", opacity: isDiabled ? 0.5 : 1 }} onClick={!isDiabled ? handlTransactionLogDownload : undefined}>
                         Download Transaction Logs <FaDownload />
                     </label>
-
                 </div>
-
             </div>
 
             <div style={styles.buttonContainer}>
@@ -65,7 +117,7 @@ const MinedTransaction = ({ }) => {
                 />
             </div>
             <button style={{ ...styles.button, width: "10%", borderWidth: "8px", border: "2px solid white", color: "black", backgroundColor: "rgb(162, 168, 118)", paddingBottom: "20px" }} onClick={handleBack}>Back </button>
-        </div>
+        </div >
     );
 };
 

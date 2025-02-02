@@ -1,149 +1,139 @@
 package main
 
 import (
+	"bufio"
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
-	"strings"
-	"time"
+	"strconv"
 )
 
-// write function which write Block struct to file
-func InsertBlockInledgerFile(filename string, block* Block) error {
+/*
+ReadAndWriteMemoryTransaction is a function to read and write the memory transactions
+main logic:
+ 1. Create a file with the name Transaction_<powLenght>_<blockLength>.json
+ 2. If the file does not exist, create a new file
+ 3. Read the blocks from the file
+ 4. Append the blocks to the ledger
+*/
+func ReadAndWriteMemoryTransaction() {
 
-	file , err :=os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	blockLengthStr := strconv.Itoa(ProofAI.selfMiningDetail.blockLength)
+	powStr := strconv.Itoa(ProofAI.selfMiningDetail.powLenght)
+	file := "Transaction_" + powStr + "_" + blockLengthStr + ".json"
+	ProofAI.selfMiningDetail.LedgerFile = file
 
-	if err !=nil{
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		f, err := os.OpenFile(file, os.O_CREATE|os.O_RDWR, 0666)
+		if err != nil {
+			log.Fatalf("Error creating file: %v\n", err)
+		}
+		f.Close()
+		return
+	}
+
+	ProofAI.selfMiningDetail.transactionFile = file
+
+	blocks, err := ReadBlocksFromLedgerFile(file)
+	if err != nil {
+		log.Fatalf("Error reading transactions from file: %v\n", err)
+	}
+
+	for _, block := range blocks {
+		ProofAI.ledger.blocks = append(ProofAI.ledger.blocks, *block)
+	}
+}
+
+/*
+InsertBlockInLedgerFile is a function to insert the block in the ledger file
+*/
+func InsertBlockInLedgerFile(block *Block) error {
+
+	filePath := ProofAI.selfMiningDetail.LedgerFile
+
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
 		log.Fatalf("Error opening file: %v", err)
 		return err
 	}
 	defer file.Close()
 
-	blockdata , err :=json.Marshal(block)
-	if err !=nil{
+	blockData, err := json.Marshal(block)
+	if err != nil {
 		log.Fatalf("Error marshalling block: %v", err)
 		return err
 	}
 
-	file.Write(append(blockdata, '\n'))
+	if _, err := file.Write(append(blockData, '\n')); err != nil {
+		log.Fatalf("Error writing block data to file: %v", err)
+		return err
+	}
 	return nil
 }
 
+/*
+ReadBlocksFromLedgerFile is a function to read the blocks from the ledger file
+*/
+func ReadBlocksFromLedgerFile(filename string) ([]*Block, error) {
 
-func writeIPTable(filename string, data string) error {
-	data += "\n"
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("Error opening file: %v", err)
-		return err
+		return nil, err
 	}
 	defer file.Close()
 
-	fileContent, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Fatalf("Error reading file: %v", err)
-		return err
-	}
-	parts := strings.Split(string(fileContent), "\n")
+	reader := bufio.NewReader(file)
+	var blocks []*Block
 
-	for _, part := range parts {
-		if part == strings.TrimSpace(data) {
-			//	fmt.Println("Data already exists in the file.")
-			return nil
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalf("Error reading file: %v", err)
+			return nil, err
 		}
-	}
-	_, err = file.Seek(0, os.SEEK_END)
-	if err != nil {
-		log.Fatalf("Error seeking to the end of the file: %v", err)
-		return err
-	}
 
-	_, err = file.WriteString(data)
-	if err != nil {
-		log.Fatalf("Error writing to file: %v", err)
-		return err
+		var block Block
+		err = json.Unmarshal([]byte(line), &block)
+		if err != nil {
+			log.Printf("Error unmarshalling block: %v", err)
+			return nil, err
+		}
+		blocks = append(blocks, &block)
 	}
-	return nil
+	return blocks, nil
 }
 
+/*
+getPubKeyofIP is a function to get the public key of the IP address from the server URL provided
+*/
+func getPubKeyofIP(serverURL string, IP string) (*ecdsa.PublicKey, error) {
 
-
-func readIPTable(filename string) (string, *ecdsa.PublicKey, error) {
-
-	file, err := os.Open(filename)
-	defer file.Close()
-
+	resp, err := http.Get(serverURL + "/machines")
 	if err != nil {
-		log.Fatalf("Error opening file: %v", err)
+		return nil, nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil
 	}
 
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Fatalf("Error reading file: %v", err)
+	var machines []MachineDetail
+	if err := json.NewDecoder(resp.Body).Decode(&machines); err != nil {
+		return nil, nil
 	}
 
-	IPs := string(data)
-	IP_Table := strings.Split(IPs, "\n")
-	rand.Seed(time.Now().UnixNano())
-
-	if len(IP_Table) == 1 {
-		return "", nil, err
+	if len(machines) == 0 {
+		return nil, nil
 	}
-
-	random_num := rand.Intn(len(IP_Table) - 1)
-	minerConn := IP_Table[random_num]
-	parts := strings.Split(minerConn, " ")
-	pubKey, err := hexToPublicKey(parts[1])
-	if err != nil {
-		return "", nil, err
-	}
-
-	return parts[0], pubKey, err
-}
-
-func readFromFile(filename string) (string, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Fatalf("Error opening file: %v", err)
-		return "", err
-
-	}
-	defer file.Close()
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Fatalf("Error reading file: %v", err)
-		return "", err
-	}
-	//fmt.Println("Data read from file: ", string(data))
-	return string(data), nil
-}
-
-
-func getPubKeyofIP(serverURL string,  IP string) ( *ecdsa.PublicKey, error) {
-
-    resp, err := http.Get(serverURL + "/machines")
-    if err != nil {
-        return nil, nil
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusOK {
-        return nil, nil
-    }
-
-    var machines []MachineDetail
-    if err := json.NewDecoder(resp.Body).Decode(&machines); err != nil {
-        return nil, nil
-    }
-
-    if len(machines) == 0 {
-        return  nil, nil
-    }
 
 	for _, machine := range machines {
 		if machine.IP == IP {
@@ -155,27 +145,5 @@ func getPubKeyofIP(serverURL string,  IP string) ( *ecdsa.PublicKey, error) {
 			return pubKey, err
 		}
 	}
-
-    return nil, nil
+	return nil, nil
 }
-
-// func getPubKeyofIP1(filename string, IP string) (*ecdsa.PublicKey, error) {
-
-// 	// Open the file
-// 	data, err := readFromFile(filename)
-
-// 	MinerTable := strings.Split(data, "\n")
-
-// 	for _, minerConn := range MinerTable {
-// 		parts := strings.Split(minerConn, " ")
-// 		if parts[0] == IP {
-// 			pubKey, err := hexToPublicKey(parts[1])
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			return pubKey, err
-// 		}
-// 	}
-// 	return nil, err
-
-// }

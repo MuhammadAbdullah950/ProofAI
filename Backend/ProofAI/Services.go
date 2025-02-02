@@ -1,25 +1,84 @@
 package main
 
-// In this snippet, the main function is replaced by createServerAndListen function.
-// The createServerAndListen function creates a new ProofAI object and starts the server to listen for incoming requests.
-// The REST API is used to communicate with the service machine.
-// The createServerAndListen function is called from the main function.
-// The main function is the starting point of the application.
-// The main function creates a new ProofAI object and starts the server to listen for incoming requests.
-// The ProofAI object is a global variable for session management.
-// The serviceMachineAdd variable is the address of the service machine, set before session creating.
-// The createServerAndListen function creates a new ProofAI object and starts the server.
-// The createServerAndListen function is called from the main function.
+/*
+	In this we create two  Server to listen for incoming requests from the external world and run background services to communicate with frontend and backend services.
+	1-	createServerAndListenExternelWorld creates a new ProofAI object and starts the server to listen for incoming requests from the external world.
+	2-	createServerAndListen creates a new ProofAI object and starts the server to listen for incoming requests from the frontend.
+	3-	handleGetLatestBlock gets the latest block.
+	4-	handlegetServiceMachineIP gets the IP address of the service machine.
+	5-	handlegetPubkey gets the public key of the miner.
+	6-	handleServiceMachineIP sets the IP address of the service machine.
+	7-	handleLogout logs out the miner.
+	8-	handleSetRole sets the role of the miner.
+	9-	handleGetRole gets the role of the miner.
+	10-	handleGetCurrentlyMiningBlock gets the currently mining block.
+	11-	handleGetMinedBlocks gets the mined blocks.
+	12-	handleTransactionConfirmation checks if the transaction is confirmed.
+	13-	handleGenerateKey generates the public and private keys for the miner.
+	14-	handleNewTransaction creates a new transaction.
+	15-	handleLoginVerification verifies the login of the miner.
+	16-	successfulllogin is called when the login is successful.
+	17-	sendServiceLogout sends a logout request to the service machine where the miner is connected to.
+*/
 
 import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/handlers"
 )
+
+/*
+createServerAndListenExternelWorld creates a new ProofAI object and starts the server to listen for incoming requests
+REST API is used to communicate with the service machine
+*/
+func createServerAndListenExternelWorld() {
+	fmt.Println("Server Starting for External World...")
+
+	http.HandleFunc("/api/latestBlock", handleGetLatestBlock)     // get latest block
+	cors := handlers.CORS(handlers.AllowedOrigins([]string{"*"})) // allow all origins
+
+	ip, err := getRadminIPv4()
+	fmt.Println("IP : ", ip)
+	address := ip + ":8079" // bind to all interfaces on port 8079
+	fmt.Printf("Listening on %s\n", address)
+
+	err = http.ListenAndServe(address, cors(http.DefaultServeMux))
+	if err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
+}
+
+/*
+handleGetLatestBlock gets the latest block
+Output parameter : response
+*/
+func handleGetLatestBlock(w http.ResponseWriter, r *http.Request) {
+
+	//fmt.Println("Get Latest Block APi is called")
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		response := map[string]string{"error": "Invalid Get method"}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if len(ProofAI.ledger.blocks) == 0 {
+		response := map[string]interface{}{"block": "null"}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	response := map[string]interface{}{"block": ProofAI.ledger.blocks[len(ProofAI.ledger.blocks)-1]}
+	json.NewEncoder(w).Encode(response)
+
+}
 
 /*
   - createServerAndListen creates a new ProofAI object and starts the server to listen for incoming requests
@@ -29,6 +88,8 @@ func createServerAndListen() {
 
 	http.HandleFunc("/api/login", handleLoginVerification)                         // login verification
 	http.HandleFunc("/api/getRole", handleGetRole)                                 // get role of the miner
+	http.HandleFunc("/api/GetServiceMachineIP", handlegetServiceMachineIP)         // get public key of the miner
+	http.HandleFunc("/api/Pubkey", handlegetPubkey)                                // get public key of the miner
 	http.HandleFunc("/api/logout", handleLogout)                                   // logout the miner
 	http.HandleFunc("/api/setRole", handleSetRole)                                 // set role of the miner
 	http.HandleFunc("/api/ServiceMachineIP", handleServiceMachineIP)               // set service machine IP
@@ -46,12 +107,50 @@ func createServerAndListen() {
 }
 
 /*
+handlegetServiceMachineIP gets the IP address of the service machine
+Output parameter : response
+*/
+func handlegetServiceMachineIP(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		response := map[string]string{"error": "Invalid Get method"}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]string{"serviceMachineIP": serviceMachineAdd}
+	json.NewEncoder(w).Encode(response)
+}
+
+/*
+  - handlegetPubkey gets the public key of the miner
+    Output parameter : response
+*/
+func handlegetPubkey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		response := map[string]string{"error": "Invalid Get method"}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	response := map[string]string{"pubKey": ProofAI.selfMiningDetail.pubKeyStr}
+	json.NewEncoder(w).Encode(response)
+}
+
+/*
   - handleServiceMachineIP sets the IP address of the service machine
     Input parameter : service machine IP address
     Output parameter : response
 */
 func handleServiceMachineIP(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method != http.MethodPost {
+
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		response := map[string]string{"error": "Invalid Post method"}
 		json.NewEncoder(w).Encode(response)
@@ -88,7 +187,9 @@ func handleLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("Logout API is called")
 	CloseSession()
+	fmt.Println("Session Closed")
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{"logout": "Success"}
 	json.NewEncoder(w).Encode(response)
@@ -118,6 +219,7 @@ func handleSetRole(w http.ResponseWriter, r *http.Request) {
 
 	role := r.FormValue("role")
 	ProofAI.selfMiningDetail.role = role
+	fmt.Println("Role : ", ProofAI.selfMiningDetail.role)
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{"role": "Set"}
 	json.NewEncoder(w).Encode(response)
@@ -140,6 +242,7 @@ func handleGetRole(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{"role": ProofAI.selfMiningDetail.role}
 	json.NewEncoder(w).Encode(response)
+	fmt.Println("Role : ", ProofAI.selfMiningDetail.role)
 }
 
 /*
@@ -158,16 +261,16 @@ func handleGetCurrentlyMiningBlock(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Println("Currently Mining Block")
+	//fmt.Println("Currently Mining Block")
 
 	if ProofAI.currentlyMiningBlockForUser.Transactions != nil {
 		response := map[string]interface{}{"block": ProofAI.currentlyMiningBlockForUser}
-	//
-	//	fmt.Println("Response ", response)
+		//
+		//	fmt.Println("Response ", response)
 		json.NewEncoder(w).Encode(response)
 	} else {
 		response := map[string]interface{}{"block": "null"}
-		fmt.Println("Response ", response)
+		//	fmt.Println("Response ", response)
 		json.NewEncoder(w).Encode(response)
 	}
 }
@@ -188,7 +291,7 @@ func handleGetMinedBlocks(w http.ResponseWriter, r *http.Request) {
 
 	// get params value
 	fiterValue := r.URL.Query().Get("filter")
-	fmt.Println("Filter value : ", fiterValue)
+	//	fmt.Println("Filter value : ", fiterValue)
 	var response map[string]interface{}
 	if fiterValue == "Own Transactions" {
 
@@ -248,7 +351,7 @@ func handleTransactionConfirmation(w http.ResponseWriter, r *http.Request) {
 	From := r.URL.Query().Get("from")
 	nonce := r.URL.Query().Get("nonce")
 
-	fmt.Println(From, nonce)
+	//fmt.Println(From, nonce)
 	// check if the transaction is confirmed
 	for _, block := range ProofAI.ledger.blocks {
 		for _, transaction := range block.Transactions {
@@ -258,7 +361,7 @@ func handleTransactionConfirmation(w http.ResponseWriter, r *http.Request) {
 				json.NewEncoder(w).Encode(response)
 				fmt.Println("Transaction Confirmed")
 				fmt.Println(From, nonce)
-				fmt.Println("transaction")
+				//	fmt.Println("transaction")
 				fmt.Println(transaction.From, transaction.Nonce)
 				return
 			}
@@ -412,4 +515,17 @@ func successfulllogin(pubKey string, prvKey string, pubKeyDecoded *ecdsa.PublicK
 	ProofAI.selfMiningDetail.pubKeyStr = pubKey
 	ProofAI.selfMiningDetail.prvKeyStr = prvKey
 	go establishConnection(ProofAI.connectionPort) // establish connection with the service machine to get the latest block details and start mining process
+}
+
+/*
+ sendServiceLogout sends a logout request to the service machine where the miner is connected to.
+*/
+
+func sendServiceLogout() {
+
+	res, err := http.Post("http://"+serviceMachineAdd+"/logout", "application/json", nil)
+	if err != nil {
+		fmt.Println("Error in sending logout request to service machine", err.Error())
+	}
+	defer res.Body.Close()
 }

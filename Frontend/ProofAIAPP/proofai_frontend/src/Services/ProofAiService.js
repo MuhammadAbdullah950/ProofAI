@@ -1,9 +1,45 @@
 import axios from 'axios';
+import path from 'path-browserify';
 
 class ProofAiService {
 
+
     constructor() {
         this.baseUrl = 'http://localhost:8080/api';
+        this.isUserLoggedIn = false;
+    }
+
+    async getPublicKey() {
+        try {
+            const response = await axios.get(`${this.baseUrl}/Pubkey`, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+            return response.data;
+        } catch (error) {
+            return error.response.data;
+        }
+    }
+
+    async setTransactionsStorageLocation() {
+        try {
+            // File name and simulated path (for demonstration)
+            const fileName = 'Transaction.json';
+            const filePath = path.join('/simulated/directory', fileName);
+
+            // Initialize file data
+            const fileData = JSON.stringify([]);
+
+            // Save the file data in localStorage or for download
+            localStorage.setItem(fileName, fileData);
+
+            alert(`File created and stored virtually at: ${filePath}`);
+            return filePath;
+        } catch (error) {
+            console.error('Error setting up transactions storage:', error);
+            throw error;
+        }
     }
 
     async setServiceMachineAddr(ServiceMachineaddr) {
@@ -21,20 +57,41 @@ class ProofAiService {
         }
     }
 
-    async pingServiceMachineAddr(serviceMachineAddr) {
+    async getServiceMachineAddr() {
         try {
-
-            alert("http://" + serviceMachineAddr + "/machines");
-            const response = await axios.get(`${"http://" + serviceMachineAddr}/fetch`);
-            return response.data;
+            const response = await axios.get(`${this.baseUrl}/GetServiceMachineIP`, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+            return response.data.serviceMachineIP;
         } catch (error) {
             return error.response.data;
+        }
+    }
+
+    async pingServiceMachineAddr(serviceMachineAddr) {
+        try {
+            const response = await axios.get(`${"http://" + serviceMachineAddr}/fetch`);
+            alert(response);
+            return response;
+        } catch (error) {
+
+            if (error.response) {
+                return error.response.data;
+            }
+            else {
+                return { error: "Service Machine is not reachable" };
+            }
         }
 
     };
 
-
     async logout() {
+        if (this.isUserLogoin === false) {
+            return { error: "Please Login First" };
+        }
+
         try {
             const response = await axios.post(`${this.baseUrl}/logout`, {
                 headers: {
@@ -70,6 +127,11 @@ class ProofAiService {
     }
 
     async getCurrentlyMinBlock() {
+
+        if (this.isUserLogoin === false) {
+            return { error: "Please Login First" };
+        }
+
         try {
             const response = await axios.get(`${this.baseUrl}/getCurrentlyMinBlock`, {
                 headers: {
@@ -78,7 +140,11 @@ class ProofAiService {
             });
             return response.data;
         } catch (error) {
-            return error.response.data;
+            if (error.response) {
+                return error.response.data;
+            } else {
+                return { error: "Please Login First" };
+            }
         }
     }
 
@@ -87,11 +153,15 @@ class ProofAiService {
             const params = new URLSearchParams();
             params.append('PubKey', PubKey);
             params.append('PrvKey', PrvKey);
-
+    
             const response = await axios.post(`${this.baseUrl}/login`, params, {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
-
+    
+            if (response.data.login === "Success") {
+                this.isUserLoggedIn = true;  // Fixed typo
+            }
+    
             return response.data;
         } catch (error) {
             if (error.response) {
@@ -101,27 +171,41 @@ class ProofAiService {
             }
         }
     }
+    
 
     async setRole(role) {
-
-        if (role === 'Validator') {
-            const response = await this.getCurrentlyMinBlock()
-            if (response.block !== "null") {
-                return { error: "Cannot change role to Validator while mining is in progress" }
-            }
+        if (!this.isUserLoggedIn) {  
+            return { error: "Please Login First" };
         }
+    
+        const response = await this.getCurrentlyMinBlock();
 
+        if (response.block !== "null" && response.block !== null) {  // Fixed condition
+                return { error: "Cannot change role to Validator while mining is in progress" };
+        }
+        
+
+        
+    
         try {
             const params = new URLSearchParams();
             params.append('role', role);
+            
             const response = await axios.post(`${this.baseUrl}/setRole`, params, {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
+    
             return response.data;
         } catch (error) {
-            return { error: error.response ? error.response.data : "Network Error" };
+            console.error("API call failed:", error);
+    
+            return { 
+                error: error.response?.data || error.message || "Unknown Error"
+            };
         }
     }
+    
+    
 
     async transactionConfirmation(from, nonce) {
         try {
@@ -138,21 +222,23 @@ class ProofAiService {
     }
 
     async uploadDataOnIPfs(data) {
-        const jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiIwYjQ1NTE0OS1iYTgyLTQ2YWYtYjU3MC1mYTBmMDFkMTAwOWUiLCJlbWFpbCI6ImFiZHVsbGFoLmJoYXR0aS45OTAwMTFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6ImU0NmJmYTI0NGRiMmUwNTM0NWM1Iiwic2NvcGVkS2V5U2VjcmV0IjoiZmM2NTFhM2NlNjE3NDIwYzgzNzU5OWRkYTUyNDFlOWM3MzI4ODA5Y2ExMzVlOTZlODJlMWViYTEyMDY3ZjNjMSIsImV4cCI6MTc2Njg1NTI0OH0.kcOg4gQYOnMataWvBDbRSYHZITADTU8AYaNVz3Yjyf8"
-        // process.env.JWT_TOKEN;
-        const url = "https://api.pinata.cloud/pinning/pinFileToIPFS"
-        //process.env.IPFS_NODE_URL;
+        const machineAddr = await this.getServiceMachineAddr();
+        const url = `http://${machineAddr}/upload`;
+
         try {
             const response = await axios.post(url, data, {
                 headers: {
-                    'Authorization': `Bearer ${jwt}`,
+                    'Content-Type': 'multipart/form-data',
                 },
             });
 
-            return response.data.IpfsHash;
-
+            // Assuming the response has a "cid" field, adjust according to your response
+            return response.data.message;
         } catch (error) {
-            return error.response.data
+            // Log the error if something goes wrong
+            console.error("Upload failed:", error);
+            alert(error)
+            return error.response ? error.response.data : { error: "An unknown error occurred" };
         }
     }
 

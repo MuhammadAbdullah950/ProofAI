@@ -1,29 +1,31 @@
 package main
 
 /*
-In this file we have the functions used in the application.
-1. writeTransaction: function to write a transaction to the buffer
-2. readTransaction: function to read a transaction from the buffer
-3. broadcastTransaction: function to broadcast a transaction to all miners
-4. signTransaction: function to sign a transaction
-5. downloadFromIPFS: function to download files from IPFS
-6. transactionHash: function to compute the hash of a transaction
-7. verifyTransaction: function to verify the signature of a transaction
-8. hashStruct: function to compute the hash of a struct
-9. findBlockBy_Nonce_From: function to find a block by nonce and from address
-10. IncomingBlockVerfication: function to verify an incoming block
-11. generateBlock: function to generate a block
-12. generateSalt: function to generate a salt
-13. PoW: function to perform Proof of Work
-14. RemoveByIndex: function to remove transactions by index
-15. BlockMining: function to mine a block
-16. MineTransaction: function to mine a transaction
-17. InsertBlockInledgerFile: function to insert a block in the ledger file
-
+In this file We have defined the functions to handle transactions and blocks in the blockchain network.
+-FileInfo is a struct to store file information
+-Response is a struct to store the response from the server
+-Functions:
+	1. writeTransaction: function to write a transaction to the buffer
+	2. readTransaction: function to read a transaction from the buffer
+	3. broadcastTransaction: function to broadcast a transaction to all miners
+	4. signTransaction: function to sign a transaction
+	6. transactionHash: function to compute the hash of a transaction
+	7. verifyTransaction: function to verify the signature of a transaction
+	8. hashStruct: function to compute the hash of a struct
+	9. findBlockBy_Nonce_From: function to find a block by nonce and from address
+	10. IncomingBlockVerfication: function to verify an incoming block
+	11. generateBlock: function to generate a block
+	12. generateSalt: function to generate a salt
+	13. PoW: function to perform Proof of Work
+	14. RemoveByIndex: function to remove transactions by index
+	15. BlockMining: function to mine a block
+	16. MineTransaction: function to mine a transaction
+	17. InsertBlockInledgerFile: function to insert a block in the ledger file
+	18. cleanDir: function to clean up a directory
+	19. userTransaction: function to create a transaction for the user
 */
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
@@ -32,6 +34,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
@@ -42,6 +45,30 @@ import (
 	"time"
 	"unsafe"
 )
+
+/*
+FileInfo is a struct to store file information
+ 1. Name: name of the file
+ 2. Hash: hash of the file
+ 3. Content: content of the file
+*/
+type FileInfo struct {
+	Name    string `json:"name"`
+	Hash    string `json:"hash"`
+	Content string `json:"content"`
+}
+
+/*
+Response is a struct to store the response from the server
+ 1. Success: status of the response
+ 2. Message: message from the server
+ 3. Files: list of files
+*/
+type Response struct {
+	Success bool       `json:"success"`
+	Message string     `json:"message"`
+	Files   []FileInfo `json:"files"`
+}
 
 /*
 writeTransaction is a function to write a transaction to the buffer
@@ -78,18 +105,23 @@ readTransaction is a function to read a transaction from the buffer
 */
 func readTransaction(miner *Miner) {
 
-	for {
+	defer miner.conn.Close()
+	for ProofAI.selfMiningDetail.connectionAlive {
 		jsonStr, err := miner.read.ReadString('\n')
 
 		if err != nil {
 
-			if err.Error() == "EOF" {
-				log.Printf("Connection closed by miner: %v", err)
-				return
-			} else {
-				log.Printf("Error from reading transaction %v : ", err)
-				return
+			for i, m := range ProofAI.Miners {
+				if m == *miner {
+					// apply mutex lock below is code
+					ProofAI.selfMiningDetail.mu.Lock()
+					ProofAI.Miners = append(ProofAI.Miners[:i], ProofAI.Miners[i+1:]...)
+					ProofAI.selfMiningDetail.mu.Unlock()
+					fmt.Println("Miner removed from the list")
+					break
+				}
 			}
+			return
 		} else {
 
 			var data map[string]interface{}
@@ -106,9 +138,13 @@ func readTransaction(miner *Miner) {
 					json.Unmarshal([]byte(jsonStr), &transaction)
 					if _, exists := ProofAI.receivedTransaction[transaction.Signature]; !exists {
 						ProofAI.receivedTransaction[transaction.Signature] = true
-						ProofAI.memPool.transactions = append(ProofAI.memPool.transactions, transaction)
-						fmt.Println("Transaction Received")
-						broadcastTransaction(ProofAI.Miners, transaction)
+						broadcastTransaction(&ProofAI.Miners, transaction)
+						if ProofAI.selfMiningDetail.role == "Miner" {
+							ProofAI.memPool.transactions = append(ProofAI.memPool.transactions, transaction)
+							fmt.Println("Transaction Received For mining")
+						} else {
+							fmt.Println("Transaction Received But not for mining")
+						}
 					}
 
 				case "block":
@@ -118,14 +154,29 @@ func readTransaction(miner *Miner) {
 					if _, exists := ProofAI.receivedBlock[block.TransactionsHash]; !exists {
 						ProofAI.receivedBlock[block.TransactionsHash] = true
 						fmt.Println("Block Received to insert in ledger")
-						ProofAI.selfMiningDetail.cancel() // stop mining
+						if ProofAI.CurrentlyMineBlock != nil {
 
-						for !ProofAI.selfMiningDetail.interuptStatus {
-							time.Sleep(1 * time.Second)
+							if len(ProofAI.ledger.blocks) == 0 || block.BlockNum > ProofAI.ledger.blocks[len(ProofAI.ledger.blocks)-1].BlockNum {
+								fmt.Println(time.Now())
+								if ProofAI.selfMiningDetail.role == "Miner" {
+									ProofAI.selfMiningDetail.cancel() // it will stop the mining of current block and not move to the next block unitl
+									for !ProofAI.selfMiningDetail.interuptStatus {
+										time.Sleep(1 * time.Second)
+									}
+								}
+								fmt.Println("Block Received to insert in ledger 2 ")
+								fmt.Println(time.Now())
+
+								broadcastTransaction(&ProofAI.Miners, block)
+								fmt.Println("Block Received to insert in ledger 3 ")
+
+								IncomingBlockVerfication(&block)
+							} else {
+								fmt.Println("Block is already mined and inserted in ledger")
+							}
+						} else {
+							fmt.Println("Block Skipped due to soon connection open")
 						}
-
-						broadcastTransaction(ProofAI.Miners, block)
-						IncomingBlockVerfication(&block)
 					}
 				}
 			}
@@ -139,14 +190,157 @@ broadcastTransaction is a function to broadcast a transaction to all miners
  2. transaction: transaction object
     Write the transaction to all miners
 */
-func broadcastTransaction(miners []Miner, transaction interface{}) {
+func broadcastTransaction(miners *[]Miner, transaction interface{}) {
+	i := 0
+	for i < len(*miners) {
 
-	for _, miner := range miners {
+		miner := (*miners)[i]
 		err := writeTransaction(&miner, transaction)
 		if err != nil {
-			fmt.Printf("error writing trnasaction to miner %s : %v", miner.conn.RemoteAddr(), err)
+			fmt.Printf("Error writing transaction to miner %v:\n", miner)
+		}
+		i++
+	}
+}
+
+/*
+get Latest block and now compare with ledger check hash , and check hash of all miners
+block and choose having highest same hash block
+*/
+func updateLedger() {
+	// Loop through all miners
+	var latestMinersBlock []Block
+	for _, miner := range ProofAI.Miners {
+		IP := strings.Split(miner.conn.RemoteAddr().String(), ":")[0]
+		url := "http://" + IP + ":8079/api/latestBlock"
+		fmt.Println("url", url)
+		res, err := http.Get(url)
+
+		if err != nil {
+			fmt.Printf("Error updating ledger from %s: %v\n", IP, err)
+			continue
+		}
+		defer res.Body.Close()
+
+		// Read response body
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			fmt.Printf("Error reading response body from %s: %v\n", IP, err)
+			continue
+		}
+
+		// Parse the response
+		var response map[string]interface{}
+		//	fmt.Println("Response from miner", string(body))
+
+		if err := json.Unmarshal(body, &response); err != nil {
+			fmt.Printf("Error unmarshalling response from %s: %v\n", IP, err)
+			continue
+		}
+
+		// Extract the block from the response
+		if response["block"] != nil && response["block"] != "null" {
+			blockData, err := json.Marshal(response["block"]) // Convert the block back to JSON
+			if err != nil {
+				fmt.Printf("Error marshalling block data from %s: %v\n", IP, err)
+				continue
+			}
+
+			var block Block
+			if err := json.Unmarshal(blockData, &block); err != nil {
+				fmt.Printf("Error unmarshalling block to struct from %s: %v\n", IP, err)
+				continue
+			}
+
+			fmt.Println("Block received from miner")
+			latestMinersBlock = append(latestMinersBlock, block)
+
+		} else {
+			fmt.Printf("No valid block received from miner %s.\n", IP)
 		}
 	}
+	if len(latestMinersBlock) == 0 {
+		fmt.Println("No valid blocks received from miners.")
+		return
+	}
+
+	verfiyMinersLatestBlock(latestMinersBlock)
+}
+
+/*
+find the hash of each block and then pick one block which has the highest same hash
+*/
+func verfiyMinersLatestBlock(latestMinerBlock []Block) {
+	// Get the hash of each block
+	hashes := make(map[string]int)
+	for _, block := range latestMinerBlock {
+		hash, err := hashStruct(block)
+		if err != nil {
+			fmt.Printf("Error hashing block: %v\n", err)
+			continue
+		}
+		hashes[hash]++
+	}
+
+	// Find the block with the highest same hash
+	maxHash := 0
+	var maxHashBlock Block
+	for _, block := range latestMinerBlock {
+		hash, err := hashStruct(block)
+		if err != nil {
+			fmt.Printf("Error hashing block: %v\n", err)
+			continue
+		}
+		if hashes[hash] > maxHash {
+			maxHash = hashes[hash]
+			maxHashBlock = block
+		}
+	}
+
+	if ProofAI.ledger.blocks == nil {
+		ProofAI.ledger.blocks = append(ProofAI.ledger.blocks, maxHashBlock)
+		InsertBlockInLedgerFile(&maxHashBlock)
+		fmt.Println("Ledger Updated Successfully")
+		return
+	}
+
+	latestBlockIndex := len(ProofAI.ledger.blocks) - 1
+
+	// Compare the block with the ledger
+	ledgerBlock := ProofAI.ledger.blocks[latestBlockIndex]
+	ledgerHash, err := hashStruct(ledgerBlock)
+	if err != nil {
+		fmt.Printf("Error hashing ledger block: %v\n", err)
+		return
+	}
+	maxHashBlockHash, err := hashStruct(maxHashBlock)
+	if err != nil {
+		fmt.Printf("Error hashing max hash block: %v\n", err)
+		return
+	}
+
+	if ProofAI.ledger.blocks[latestBlockIndex].BlockNum == maxHashBlock.BlockNum {
+		// now compare the both hashes
+		if ledgerHash != maxHashBlockHash {
+			fmt.Println("Ledger block hash does not match with the max hash block")
+			ProofAI.ledger.blocks[latestBlockIndex] = maxHashBlock
+			fmt.Println("Ledger updated successfully")
+			//	InsertBlockInLedgerFile(&maxHashBlock)
+		}
+	} else {
+
+		if ProofAI.ledger.blocks[latestBlockIndex].BlockNum > maxHashBlock.BlockNum {
+			fmt.Println("Ledger is already updated")
+			return
+		}
+		ProofAI.ledger.blocks = append(ProofAI.ledger.blocks, maxHashBlock)
+		InsertBlockInLedgerFile(&maxHashBlock)
+		fmt.Println("Ledger updated successfully")
+		return
+	}
+
+	fmt.Println("Ledger is already correct  ")
+
 }
 
 /*
@@ -182,83 +376,6 @@ func signTransaction(privateKey *ecdsa.PrivateKey, transHash string) (string, er
 		return "", fmt.Errorf("error encoding signature: %v", err)
 	}
 	return hex.EncodeToString(signature), nil
-}
-
-/*
-FileInfo is a struct to store file information
- 1. Name: name of the file
- 2. Hash: hash of the file
- 3. Content: content of the file
-*/
-type FileInfo struct {
-	Name    string `json:"name"`
-	Hash    string `json:"hash"`
-	Content string `json:"content"`
-}
-
-/*
-Response is a struct to store the response from the server
- 1. Success: status of the response
- 2. Message: message from the server
- 3. Files: list of files
-*/
-type Response struct {
-	Success bool       `json:"success"`
-	Message string     `json:"message"`
-	Files   []FileInfo `json:"files"`
-}
-
-/*
-downloadFromIPFS is a function to download files from IPFS
- 1. cid: content identifier of the file
- 2. outputDir: output directory to save the files
-    Create the output directory
-    Prepare the request
-    Check the status code
-    Parse the response
-    Save each file
-*/
-func downloadFromIPFS(cid string, outputDir string) error {
-	err := os.MkdirAll(outputDir, 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create directory: %v", err)
-	}
-	serviceMachineURl := "http://" + ProofAI.selfMiningDetail.serviceMachineAddr
-
-	data := bytes.NewBufferString(fmt.Sprintf("cid=%s", cid))
-	resp, err := http.Post(serviceMachineURl+"/fetch", "application/x-www-form-urlencoded", data)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Check status code
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned status: %d", resp.StatusCode)
-	}
-
-	// Parse response
-	var response Response
-	decoder := json.NewDecoder(resp.Body)
-	if err := decoder.Decode(&response); err != nil {
-		return fmt.Errorf("failed to decode response: %v", err)
-	}
-
-	if !response.Success {
-		return fmt.Errorf("server error: %s", response.Message)
-	}
-
-	for _, file := range response.Files {
-		filePath := filepath.Join(outputDir, file.Name)
-
-		// Write the content directly without base64 decoding
-		err = os.WriteFile(filePath, []byte(file.Content), 0644)
-		if err != nil {
-			return fmt.Errorf("failed to save file %s: %v", file.Name, err)
-		}
-	}
-
-	return nil
 }
 
 /*
@@ -367,121 +484,135 @@ func findBlockBy_Nonce_From(nonce int, from string) bool {
 
 /*
 IncomingBlockVerfication is a function to verify an incoming block
- 1. block: incoming block
-    Verify the transactions in the block
-    Generate the transaction hash for the self-mined block
-    Generate the hash for the previous block
-    Compare the hashes
-    Update the self-mined block properties
-    Generate hashes for comparison
-    Compare hashes
-    Add the incoming block to the ledger if valid and update the ledger
+ 1. block: block object
+    each miner execute each transaction in the block and find own trained model and then verify the block by hash
+    If the block is valid, add it to the ledger
+    If the block is invalid, mine the block again where it paused
 */
 func IncomingBlockVerfication(block *Block) {
+
 	fmt.Println("Incoming Block Verification started")
 
-	transVerification := true
+	if ProofAI.selfMiningDetail.role == "Miner" {
+		for _, transaction := range block.Transactions {
 
-	for i, transaction := range block.Transactions {
-		// Ensure index is within the range of self-mined block transactions
-		if i >= len(ProofAI.selfMiningDetail.CurrentlyMineBlock.Transactions) {
-			fmt.Printf("No corresponding transaction in self-mined block for index %d\n", i)
-			continue
+			fmt.Printf("Block Transaction nonce: %d, From: %s\n", transaction.Nonce, transaction.From)
+			transactionExist := findBlockBy_Nonce_From(transaction.Nonce, transaction.From)
+			if !transactionExist {
+				fmt.Println("Above Transaction is need to be mined.")
+				MineTransaction(&transaction, &ProofAI.selfMiningDetail.CurrentlyMineBlock)
+			}
 		}
-
-		fmt.Printf("Block Transaction nonce: %d, From: %s\n", transaction.Nonce, transaction.From)
-
-		transactionExist := findBlockBy_Nonce_From(transaction.Nonce, transaction.From)
-		if !transactionExist {
-			fmt.Printf("Transaction with Nonce: %d, From: %s needs mining.\n", transaction.Nonce, transaction.From)
-			MineTransaction(&transaction, &ProofAI.selfMiningDetail.CurrentlyMineBlock)
-			transVerification = false
-		}
-	}
-
-	if transVerification {
 		fmt.Println("Transaction verification completed")
-
-		transHash, err := hashStruct(ProofAI.selfMiningDetail.CurrentlyMineBlock.Transactions)
+		isValidBlock, err := IsIncomingBlockValid(block, ProofAI.selfMiningDetail.CurrentlyMineBlock.Transactions) // error in this
 		if err != nil {
-			fmt.Printf("Error constructing block hash of transactions: %v\n", err)
+			fmt.Printf("Error during block verification: %v\n", err)
 			return
 		}
 
-		ProofAI.selfMiningDetail.CurrentlyMineBlock.TransactionsHash = transHash
-
-		blockSize := len(ProofAI.ledger.blocks)
-		var prevBlockHash string
-
-		if blockSize != 0 {
-			prevBlockHash, err = hashStruct(ProofAI.ledger.blocks[blockSize-1])
-			if err != nil {
-				fmt.Println("Error constructing previous block hash")
-				return
-			}
-
-			ProofAI.selfMiningDetail.CurrentlyMineBlock.BlockNum = ProofAI.ledger.blocks[blockSize-1].BlockNum + 1
-		} else {
-			prevBlockHash = "000GENESISBLOCKID"
-			ProofAI.selfMiningDetail.CurrentlyMineBlock.BlockNum = 1
+		if isValidBlock {
+			return
+		}
+		fmt.Println("Incoming block is invalid. Mining the block again start .")
+		err = PoW(ProofAI.CurrentlyMineBlock, nil)
+		if err != nil {
+			fmt.Printf("Error during Proof of Work for block: %v\n", err)
+			BlockMiningEnd()
+			return
 		}
 
-		ProofAI.selfMiningDetail.CurrentlyMineBlock.Prev_Hash = prevBlockHash
-		ProofAI.selfMiningDetail.CurrentlyMineBlock.ProposerId = ProofAI.selfMiningDetail.pubKeyStr
-		ProofAI.selfMiningDetail.CurrentlyMineBlock.Difficulty = ProofAI.difficultyLevel
+		// Finalize block details
+
+		// Log block mining success
+		fmt.Println("Block mined successfully. Broadcasting to all miners...")
+
+		// Add to receivedBlock and broadcast
+		ProofAI.receivedBlock[ProofAI.CurrentlyMineBlock.TransactionsHash] = true
+
+		broadcastTransaction(&ProofAI.Miners, ProofAI.CurrentlyMineBlock)
+
+		// Log broadcast completion
+		fmt.Printf("Block broadcasted successfully at %s.\n", time.Now().Format(time.RFC3339))
+	} else {
+		fmt.Println("Only verified by POW.")
+		ProofAI.CurrentlyMineBlock = block
+		ProofAI.selfMiningDetail.CurrentlyMineBlock = *block
 	}
 
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.Salt = block.Salt
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.Prev_Hash = block.Prev_Hash
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.Proof = block.Proof
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.TimeStamp = block.TimeStamp
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.EventEmit = block.EventEmit
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.Type = block.Type
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.ProposerId = block.ProposerId
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.BlockNum = block.BlockNum
-	ProofAI.selfMiningDetail.CurrentlyMineBlock.Difficulty = block.Difficulty
+	ProofAI.ledger.blocks = append(ProofAI.ledger.blocks, *ProofAI.CurrentlyMineBlock)
+	InsertBlockInLedgerFile(ProofAI.CurrentlyMineBlock)
+	BlockMiningEnd()
+}
 
-	currentBlockHash, err := hashStruct(ProofAI.selfMiningDetail.CurrentlyMineBlock)
+/*
+IsIncomingBlockValid is function used to verify the incoming block after each transaction in model and attach with this block and then find hash of incoming block and compare with current block hash
+ 1. block: block object
+ 2. transactions: list of transactions
+    Compute the hash of the incoming block
+    Compute the hash of the current block
+    If the hashes match, add the block to the ledger
+*/
+func IsIncomingBlockValid(block *Block, transactions []Transaction) (bool, error) {
+
+	tempSelfMiningBlock := block
+	for i, transaction := range transactions {
+		tempSelfMiningBlock.Transactions[i] = transaction
+	}
+
+	currentBlockHash, err := hashStruct(tempSelfMiningBlock)
 	if err != nil {
 		fmt.Printf("Error during hash generation: %v\n", err)
-		return
+		return false, err
 	}
 
 	incomingBlockHash, err := hashStruct(block)
 	if err != nil {
 		fmt.Printf("Error during hash generation for incoming block: %v\n", err)
-		return
+		return false, err
 	}
 
-	// Compare hashes
 	if currentBlockHash != incomingBlockHash {
 		fmt.Println("Error: Incoming block hash does not match. Incoming block is invalid.")
-		return
+		return false, nil
 	}
 
 	fmt.Println("Incoming block is valid and will now be added to the ledger.")
 	ProofAI.ledger.blocks = append(ProofAI.ledger.blocks, *block)
+	InsertBlockInLedgerFile(block)
+	BlockMiningEnd()
 
+	return true, nil
 }
 
 /*
-MineTransaction is a function to mine a transaction
- 1. transaction: transaction object
- 2. block: block object
-    Compute the hash of the transaction
-    Sign the transaction
+generateBlock is a function to generate a block and mine it
+1- transactions: list of transactions
+2- wg: wait group object
+3- ctx: context object
+
+	Get the previous block hash
+	If the previous block hash does not have the required prefix, set it to the genesis block hash
+	Set the block number
+	Set the proposer ID
+	Set the difficulty level
+	Set the transactions
+	Process the transactions
+	Compute the hash of the transactions
+	Set the block type
+	Set the timestamp
+	Perform Proof of Work
 */
 func generateBlock(trans_list []Transaction, wg *sync.WaitGroup, ctx context.Context) {
 
 	defer wg.Done()
-	fmt.Printf("New Block start to mining. It contains %d transactions.\n", len(trans_list))
+	ProofAI.selfMiningDetail.interuptStatus = false
+	ProofAI.difficultyLevel = ProofAI.selfMiningDetail.powLenght
+	updateLedger()
 
 	ProofAI.selfMiningDetail.CurrentlyMineBlock = Block{}
 	ProofAI.CurrentlyMineBlock = &ProofAI.selfMiningDetail.CurrentlyMineBlock
-
 	ProofAI.CurrentlyMineBlock.Transactions = trans_list
 
-	// Set block properties
 	blockSize := len(ProofAI.ledger.blocks)
 	var prev_blockHash string
 	var err error
@@ -494,70 +625,73 @@ func generateBlock(trans_list []Transaction, wg *sync.WaitGroup, ctx context.Con
 			return
 		}
 	} else {
-		prev_blockHash = "00000GENESISBLOCKID"
+		prev_blockHash = GenesisBlockHash()
 		ProofAI.CurrentlyMineBlock.BlockNum = 1
+	}
+
+	if !strings.HasPrefix(prev_blockHash, strings.Repeat("0", ProofAI.difficultyLevel)) {
+		prev_blockHash = GenesisBlockHash()
 	}
 
 	ProofAI.CurrentlyMineBlock.Prev_Hash = prev_blockHash
 	ProofAI.CurrentlyMineBlock.ProposerId = ProofAI.selfMiningDetail.pubKeyStr
 	ProofAI.CurrentlyMineBlock.Difficulty = ProofAI.difficultyLevel
-
 	ProofAI.currentlyMiningBlockForUser = *ProofAI.CurrentlyMineBlock
 	ProofAI.CurrentlyMineBlock.Transactions = nil
 
 	for _, transaction := range trans_list { // Process transactions
-		// Check if context is canceled before mining each transaction
-		select {
-		case <-ctx.Done():
-			fmt.Printf("Mining interrupted during transaction processing for block %d.\n", ProofAI.CurrentlyMineBlock.BlockNum)
-			ProofAI.selfMiningDetail.interuptStatus = true
-			return
-		default:
-			MineTransaction(&transaction, ProofAI.CurrentlyMineBlock)
-		}
+		transaction.BlockNum = ProofAI.CurrentlyMineBlock.BlockNum
+		MineTransaction(&transaction, ProofAI.CurrentlyMineBlock)
 	}
 
 	trans_hash, err := hashStruct(ProofAI.CurrentlyMineBlock.Transactions)
 	if err != nil {
 		fmt.Printf("Error constructing block hash of transactions: %v\n", err)
+		BlockMiningEnd()
 		return
 	}
 	ProofAI.CurrentlyMineBlock.TransactionsHash = trans_hash
+	ProofAI.CurrentlyMineBlock.Type = "block"
+	ProofAI.CurrentlyMineBlock.TimeStamp = time.Now().Format(time.RFC3339)
+	ProofAI.CurrentlyMineBlock.Difficulty = ProofAI.difficultyLevel
 
-	fmt.Printf("Block number: %d\n", ProofAI.CurrentlyMineBlock.BlockNum)
-
-	// Check context before starting proof of work
 	if ctx.Err() != nil {
-		fmt.Printf("Interrupted mining block %d before Proof of Work (PoW) started.\n", ProofAI.CurrentlyMineBlock.BlockNum)
 		ProofAI.selfMiningDetail.interuptStatus = true
 		return
 	}
 
-	// Perform Proof of Work
 	err = PoW(ProofAI.CurrentlyMineBlock, ctx)
 	if err != nil {
 		fmt.Printf("Error during Proof of Work for block: %v\n", err)
+		BlockMiningEnd()
 		return
 	}
 
-	// Finalize block details
-	ProofAI.CurrentlyMineBlock.Type = "block"
-	ProofAI.CurrentlyMineBlock.TimeStamp = time.Now().Format(time.RFC3339)
-
-	// Log block mining success
-	fmt.Println("Block mined successfully. Broadcasting to all miners...")
-
-	// Add to receivedBlock and broadcast
 	ProofAI.receivedBlock[ProofAI.CurrentlyMineBlock.TransactionsHash] = true
-
-	broadcastTransaction(ProofAI.Miners, ProofAI.CurrentlyMineBlock)
-	InsertBlockInledgerFile("ledger.json", ProofAI.CurrentlyMineBlock)
-
-	// Log broadcast completion
-	fmt.Printf("Block broadcasted successfully at %s.\n", time.Now().Format(time.RFC3339))
+	broadcastTransaction(&ProofAI.Miners, ProofAI.CurrentlyMineBlock)
+	InsertBlockInLedgerFile(ProofAI.CurrentlyMineBlock)
 	ProofAI.ledger.blocks = append(ProofAI.ledger.blocks, *ProofAI.CurrentlyMineBlock)
+	BlockMiningEnd()
+}
+
+/*
+BlockMiningEnd is a function to end block mining
+
+	Set the currently mining block to nil
+	Set the currently mining block for the user to an empty block
+*/
+func BlockMiningEnd() {
 	ProofAI.CurrentlyMineBlock = nil
 	ProofAI.currentlyMiningBlockForUser = Block{}
+}
+
+/*
+GenesisBlockHash is a function to generate the hash of the genesis block
+ 1. return: hash of the genesis block ( 0's of length equal to the block length)
+*/
+func GenesisBlockHash() string {
+	requiredPrefix := strings.Repeat("0", ProofAI.selfMiningDetail.blockLength)
+	return requiredPrefix
 }
 
 /*
@@ -580,8 +714,6 @@ func generateSalt(size uint) (string, error) {
 /*
 PoW is a function to perform Proof of Work
  1. block: block object
-    Set the block size and salt size
-    Set the difficulty level
     Generate the required prefix
     Generate the salt
     Compute the hash of the block
@@ -590,12 +722,13 @@ PoW is a function to perform Proof of Work
     If the context is canceled, set the interupt status and return an error
 */
 func PoW(block *Block, ctx context.Context) error {
-	fmt.Printf("Pow of work start")
+
 	blockSize := uint(102400)
 	saltSize := blockSize - uint(unsafe.Sizeof(block))
-	block.Difficulty = 3
+
 	requiredPrefix := strings.Repeat("0", block.Difficulty)
 	for {
+
 		salt, err := generateSalt(saltSize)
 		if err != nil {
 			return fmt.Errorf("%v", err)
@@ -605,11 +738,8 @@ func PoW(block *Block, ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("%v", err)
 		}
-		// fmt.Println(blockHash)
+
 		if strings.HasPrefix(blockHash, requiredPrefix) {
-			//fmt.Printf("Block : %+v", block)
-			block.Salt = salt
-			fmt.Printf(" BlockHash : %s\n", blockHash)
 			return nil
 		}
 
@@ -631,7 +761,7 @@ func RemoveByIndex(transaction []Transaction, indices []int) []Transaction {
 	for i := len(indices) - 1; i >= 0; i-- {
 		index := indices[i]
 		if index < 0 || index >= len(transaction) {
-			continue // Skip invalid indices
+			continue
 		}
 		transaction = append(transaction[:index], transaction[index+1:]...)
 	}
@@ -649,26 +779,29 @@ BlockMining is a function to mine a block
     Get only 2 transactions from the mempool if available, otherwise start mining with one transaction
 */
 func BlockMining(ctx context.Context) {
-	fmt.Println("MemPool Start To Receive Transactions")
+
+	for ProofAI.selfMiningDetail.role != "Miner" {
+		time.Sleep(1 * time.Second)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Block mining stopped")
 			return
 		default:
 
 			if len(ProofAI.ledger.blocks) > 0 {
+
 				lastBlock := ProofAI.ledger.blocks[len(ProofAI.ledger.blocks)-1]
 				lastBlockTime, err := time.Parse(time.RFC3339, lastBlock.TimeStamp)
 				if err != nil {
 					fmt.Printf("Error parsing time: %v\n", err)
 					return
 				}
-				// get current time and calculate difference and if dfference is greater than 5 minutes then start mining
 				currentTime := time.Now()
 				diff := currentTime.Sub(lastBlockTime)
 				if diff.Minutes() > 2 {
-					// get only 2 transactions from mempool if available otherwise start mining with one transaction
+
 					if len(ProofAI.memPool.transactions) >= 2 {
 
 						var wg sync.WaitGroup
@@ -692,6 +825,7 @@ func BlockMining(ctx context.Context) {
 					time.Sleep(1 * time.Minute)
 				}
 			} else {
+
 				if len(ProofAI.memPool.transactions) >= 2 {
 
 					var wg sync.WaitGroup
@@ -720,98 +854,68 @@ func BlockMining(ctx context.Context) {
 MineTransaction is a function to mine a transaction
  1. transaction: transaction object
  2. block: block object
-    Download the dataset and model from IPFS
     Execute the model
     Add the transaction to the block
 */
 func MineTransaction(transaction *Transaction, block *Block) {
 
-	fmt.Printf("Mining Transaction : %+v\n", transaction.From)
-
 	pubkey, err := hexToPublicKey(transaction.From)
 	if err != nil {
-		log.Fatalf("Error getting public key from hex string %v", err)
+		fmt.Printf("Error getting public key from hex string %v", err)
 		return
 	}
 
 	signatureValidation, err := verifyTransaction(pubkey, transaction)
 	if err != nil {
-		log.Fatalf("Error verifying transaction %v", err)
+		fmt.Printf("Error verifying transaction %v", err)
 		return
 	}
 	if !signatureValidation {
-		log.Fatalf("Error: Transaction signature is invalid")
+		fmt.Printf("Error: Transaction signature is invalid")
 		return
 	} else {
 		fmt.Println("Transaction signature is valid")
 	}
 
-	// Determine the directory path
-	currentDir := os.TempDir()
-	// add time stamp with the directory
-	dirPath := filepath.Join(currentDir, ProofAI.modelExecutionDir + time.Now().Format("20060102150405"))  
-	fmt.Println("Directory path: ", dirPath)
+	dirPath := filepath.Join(os.TempDir(), ProofAI.modelExecutionDir+time.Now().Format("20060102150405"))
 
-	// Check if the directory exists and remove it
 	if _, err := os.Stat(dirPath); err == nil {
-		// Directory exists; remove it
 		if err := os.RemoveAll(dirPath); err != nil {
 			fmt.Printf("Error removing existing directory: %v\n", err)
 			return
 		}
 		fmt.Println("Existing directory removed")
 	} else if !os.IsNotExist(err) {
-		// Unexpected error
 		fmt.Printf("Error checking directory existence: %v\n", err)
-		
 		return
 	}
 
-	// Create a fresh directory
 	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		fmt.Printf("Error creating directory: %v\n", err)
-		cleanDir(dirPath )
-		return
-	}
-	fmt.Println("Directory created successfully")
-
-	// Download dataset and model to the specified directory
-	err = downloadFromIPFS(transaction.Input_dataSet, filepath.Join(dirPath, "dataset"))
-	if err != nil {
-		log.Fatalf("Error downloading dataset from IPFS: %v", err)
-		cleanDir(dirPath )
+		cleanDir(dirPath)
 		return
 	}
 
-	err = downloadFromIPFS(transaction.Input_model, filepath.Join(dirPath, "model"))
-	if err != nil {
-		log.Fatalf("Error downloading model from IPFS: %v", err)
-		cleanDir(dirPath )
-		return
-	}
+	modelOutput, transactionLog, err := modelExecution(transaction.Input_dataSet, transaction.Input_model, dirPath)
 
-	// Execute the model and update the transaction
-	modelOutput, err := modelExecution(dirPath)
-	if err != nil {
-		fmt.Printf("Error during model execution: %v\n", err)
-		cleanDir(dirPath )
-		return
-	}
 	transaction.Model_output = modelOutput
+	transaction.TransactionLog = transactionLog
 	block.Transactions = append(block.Transactions, *transaction)
-	fmt.Println("Mining Transaction Completed")
-
-	cleanDir(dirPath ) 
-	
+	cleanDir(dirPath)
 }
 
+/*
+cleanDir is a function to clean up a directory
+ 1. dirpath: path of the directory
+    Remove the directory
+*/
 func cleanDir(dirpath string) {
 	if err := os.RemoveAll(dirpath); err != nil {
 		fmt.Printf("Error removing directory at cleanup: %v\n", err)
 		return
 	}
-	fmt.Println("Temporary directory cleaned up")}
-
+	fmt.Println("Temporary directory cleaned up")
+}
 
 /*
 userTransaction is a function to create a transaction for the user
@@ -843,8 +947,7 @@ func userTransaction(model_cid string, dataset_cid string) (Transaction, error) 
 	ProofAI.selfMiningDetail.nonce += 1
 	ProofAI.receivedTransaction[transaction_.Signature] = true
 	ProofAI.memPool.transactions = append(ProofAI.memPool.transactions, transaction_)
-	fmt.Println("Transaction Recieved.")
-	broadcastTransaction(ProofAI.Miners, &transaction_)
+	broadcastTransaction(&ProofAI.Miners, &transaction_)
 
 	return transaction_, nil
 }

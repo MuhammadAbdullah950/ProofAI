@@ -9,14 +9,16 @@ const Header = ({ handleLogout }) => {
     const handleRoleChange = async (e) => {
         const minerRole = e.target.value;
         const response = await ProofAiService.setRole(minerRole);
-        alert(response);
-        if (response.error) {
-            alert(response.error);
-            setRole(role);
+    
+        if (response.error) {  // Corrected error check
+            alert(response.error);  // Show actual error message
+            e.target.value = "Miner";
             return;
         }
+    
         setRole(minerRole);
-    }
+    };
+    
 
 
     return (

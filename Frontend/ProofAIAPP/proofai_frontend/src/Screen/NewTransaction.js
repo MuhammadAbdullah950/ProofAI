@@ -4,6 +4,7 @@ import MiningTransaction from '../Components/MiningTransaction'
 import { useProofAiService } from '../ProofaiServiceContext'
 import { useAlert } from '../Context/AlertContext'
 import { ClipLoader } from 'react-spinners'
+import { useNavigate } from 'react-router-dom'
 const NewTransaction = () => {
 
     const [ipfsCont, setipfsCont] = React.useState(false)
@@ -14,15 +15,21 @@ const NewTransaction = () => {
     const [responseWait, setResponseWait] = React.useState(false)
 
 
+    const navigate = useNavigate()
     const proofAiService = useProofAiService()
     const { showAlert, hideAlert } = useAlert();
     const [transactionJson, settransactionJson] = React.useState({})
-
 
     const handleIpfs = () => {
         hideAlert();
         setipfsCont(!ipfsCont)
     }
+
+    const handleUserInstructions = () => {
+        hideAlert();
+        navigate('/UserInstructions')
+    }
+
     const handleMine = async () => {
         if (modelCID === '' || datasetCID === '') {
             showAlert('Please Enter Model and Dataset CID', 'error')
@@ -39,9 +46,6 @@ const NewTransaction = () => {
             alert('Only miners can process transactions. Please switch your role to Miner to proceed.', 'error')
             return
         }
-
-
-
         setResponseWait(true)
         const response = await proofAiService.newTransaction({ modelCID, datasetCID, puzzleStrength })
         setResponseWait(false)
@@ -68,8 +72,6 @@ const NewTransaction = () => {
 
     return (
         <div style={styles.container} >
-
-
             {ipfsCont && <IPFS setipfsCont={setipfsCont} />}
             {mineTransaction && <MiningTransaction setmineTransaction={setmineTransaction} transactionJson={transactionJson} />}
             {responseWait && <ClipLoader color={'#123abc'} loading={true} size={50} />}
@@ -85,8 +87,7 @@ const NewTransaction = () => {
                     <button style={styles.button} onClick={handleIpfs}  >Need to Upload First on IPFS</button>
                 </div>
                 <div style={styles.buttonContianer} >
-                    <button style={styles.button} onClick={handleIpfs}  >Transaction Instruction</button>
-
+                    <button style={styles.button} onClick={handleUserInstructions}  >Transaction Instruction</button>
                     <button style={{ ...styles.button }} onClick={handleBackButton}   >back</button>
                 </div>
             </div>}
@@ -166,5 +167,4 @@ const styles = {
     buttonHover: {
         backgroundColor: '#0056b3',
     },
-
 }

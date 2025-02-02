@@ -1,7 +1,17 @@
 package main
 
+/*
+	In this we create a new session of ProofAI when user login and close the current session when user logs out.
+	1-		StartNewSession is a function to start a new session of ProofAI.
+	2-		CloseSession is a function to close the current session of ProofAI.
+	3-		ProofAIFactory is a struct to create a new ProofAI object.
+	4-		NewProofAIFactory is a function to create a new ProofAI object.
+	5-		Reset is a function to reset the ProofAI object.
+*/
+
 import (
 	"context"
+	"time"
 )
 
 /*
@@ -24,27 +34,14 @@ logic to close the session
 */
 func CloseSession() {
 	ProofAI.selfMiningDetail.connectionAlive = false
-	for _, miner := range ProofAI.Miners {
-		miner.conn.Close()
-	}
+	ProofAI.selfMiningDetail.connListen.Close()
+	time.Sleep(2 * time.Second)
 	ProofAI.Reset()
+	sendServiceLogout()
 }
 
 /*
-ProofAIFactory is a factory class to create a new ProofAI object
- 1. startPort: starting port for the server
- 2. difficultyLevel: difficulty level for mining
- 3. connectionPort: port for connection
- 4. modelExecutionDir: directory for model execution
- 5. IPTable: file to store IP addresses
- 6. selfMiningDetail: details of the miner
- 7. memPool: memory pool to store transactions
- 8. Miners: list of miners
- 9. ledger: ledger to store transactions
- 10. CurrentlyMineBlock: block currently being mined
- 11. receivedTransaction: map to store received transactions
- 12. receivedBlock: map to store received blocks
- 13. currentlyMiningBlockForUser: block currently being mined for user
+ProofAIFactory is a struct to create a new ProofAI object
 */
 type ProofAIFactory struct {
 	startPort                   int
@@ -64,16 +61,14 @@ type ProofAIFactory struct {
 
 /*
 NewProofAIFactory creates a new ProofAIFactory object
+Purpose of the function is to create a new ProofAIFactory object and initialize it with default values
 */
-
 func NewProofAIFactory() *ProofAIFactory {
 	return &ProofAIFactory{
-		startPort:           8081,
-		difficultyLevel:     5,
+		startPort:           8280,
 		connectionPort:      "8090",
 		modelExecutionDir:   "TransactonExecution",
-		IPTable:             "MachineIPTable.txt",
-		selfMiningDetail:    selfMiner{nonce: 0, role: "Miner", connectionAlive: true, serviceMachineAddr: serviceMachineAdd},
+		selfMiningDetail:    selfMiner{nonce: 0, role: "Miner", connectionAlive: true, serviceMachineAddr: serviceMachineAdd, readLedger: false},
 		memPool:             MemPool{},
 		Miners:              []Miner{},
 		ledger:              Ledger{},
@@ -84,7 +79,7 @@ func NewProofAIFactory() *ProofAIFactory {
 }
 
 /*
-Reset resets the ProofAI object
+Reset resets the ProofAI object, is used to reset the ProofAI object
 */
 func (bf *ProofAIFactory) Reset() {
 	bf.selfMiningDetail = selfMiner{nonce: 0, role: "Miner"}

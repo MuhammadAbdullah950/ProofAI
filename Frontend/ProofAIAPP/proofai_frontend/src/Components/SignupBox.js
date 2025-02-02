@@ -13,7 +13,6 @@ const SignupBox = ({ handleLoginSignup, onPress }) => {
     const handleGenerateKey = async () => {
         const response = await proofAiService.generateKeys();
         hideAlert();
-
         if (response.error) {
             showAlert("Error in  generating key: " + response.error, "error");
             return;
@@ -45,18 +44,11 @@ const SignupBox = ({ handleLoginSignup, onPress }) => {
         }
     }
 
-
-
-
-
     return (
         <div style={styles.maxWidth}>
             <div style={{ ...styles.boxShadow, ...styles.bgGray }}>
                 <div style={styles.padding}>
                     <h2 style={{ ...styles.textCenter, ...styles.textWhite, ...styles.text3xl, ...styles.fontExtrabold }}> Welcome To ProofAI</h2>
-
-
-
                     <div style={styles.roundedShadow}>
                         <div>
                             <label htmlFor="publicKey" style={{ ...styles.label, fontWeight: "bold", color: "#c8deaf" }} >Public Key</label>
@@ -81,15 +73,10 @@ const SignupBox = ({ handleLoginSignup, onPress }) => {
                             />
                         </div>
                     </div>
-
-
-
                     <div style={{ display: "flex", flexDirection: "row", gap: '20px', marginTop: '20px' }}>
                         <button style={styles.button} onClick={handleGenerateKey}>Generate Key</button>
                         <button style={styles.button} onClick={handleLogin}  >Login-in</button>
-
                     </div>
-
                 </div>
             </div>
         </div >

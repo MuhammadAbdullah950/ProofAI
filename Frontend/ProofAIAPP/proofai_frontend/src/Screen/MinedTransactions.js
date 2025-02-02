@@ -4,12 +4,12 @@ import { useProofAiService } from "../ProofaiServiceContext";
 import { useAlert } from "../Context/AlertContext";
 
 
-// facing null error during getting blocks , need to send [] instead of null
 const MinedTransactions = () => {
     const { showAlert, hideAlert } = useAlert();
     const navigate = useNavigate();
     const ProofAiService = useProofAiService();
     const [minedBlock, setMinedBlock] = React.useState([]);
+    const [tempMinedBlock, setTempMinedBlock] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
     const [filterValue, setFilterValue] = React.useState("");
 
@@ -24,6 +24,7 @@ const MinedTransactions = () => {
                 if (response.blocks && Array.isArray(response.blocks)) {
                     // Ensure blocks is an array
                     setMinedBlock(response.blocks);
+                    setTempMinedBlock(response.blocks);
                 } else {
                     // Set minedBlock to an empty array if blocks is null or not an array
                     setMinedBlock([]);
@@ -49,25 +50,42 @@ const MinedTransactions = () => {
     };
 
     const handleNavigate = (transactionString) => {
-        const transaction = JSON.parse(transactionString); // Parse back to an object
-        navigate(`/MinedTransaction`, { state: { transaction } }); // Pass transaction in state
+        const transaction = JSON.parse(transactionString);
+        navigate(`/MinedTransaction`, { state: { transaction } });
     };
 
-    const handleFilterBlocks = (e) => {
-        setFilterValue(e.target.value);
-        GetBlocks();
+    const handleFilterBlocks = async (e) => {
+
+        if (e.target.value !== "Own Transactions") {
+            setMinedBlock(tempMinedBlock);
+        } else {
+            const response = await ProofAiService.getPublicKey();
+
+            if (response.error) {
+                showAlert(response.error, "error");
+            } else {
+                const publicKey = response.pubKey;
+                const filteredBlocks = minedBlock
+                    .map((block) => {
+                        const filteredTransactions = block.transactions?.filter(
+                            (transaction) => transaction.from === publicKey
+                        );
+                        return { ...block, transactions: filteredTransactions };
+                    })
+                    .filter((block) => block.transactions && block.transactions.length > 0);
+
+                setMinedBlock(filteredBlocks);
+            }
+        }
     };
-
-
-
 
     return (
         <div style={styles.container}>
             <div style={styles.headerContainer}>
                 <h1 style={styles.header}>Mined Blocks</h1>
-                <select style={styles.dropdown} onChange={GetBlocks} >
-                    <option value="">All Transactions</option>
-                    <option value="own">Own Transactions</option>
+                <select style={styles.dropdown} onChange={handleFilterBlocks} >
+                    <option value="All Transactions">All Transactions</option>
+                    <option value="Own Transactions">Own Transactions Blocks </option>
                 </select>
             </div>
 
@@ -78,23 +96,16 @@ const MinedTransactions = () => {
                         style={styles.Button}
                         onChange={(e) => handleNavigate(e.target.value)}
                     >
-                        <option value="">
-                            BlockNum: {block.blockNum}
-                        </option>
+                        <option value="">BlockNum: {block.blockNum}</option>
+                        <option key={block.blockNum + "1"} value={JSON.stringify(block)} >Complete Mined Block </option>
                         {block.transactions && block.transactions.length > 0 ? (
                             block.transactions.map((transaction) => (
                                 <option
                                     key={transaction.transactionId}
                                     value={JSON.stringify(transaction)}
-                                    style={{
-                                        whiteSpace: "pre-wrap",
-                                        wordWrap: "break-word",
-                                        overflowWrap: "anywhere",
-                                    }}
-                                >
-                                    Transaction = Nonce: {transaction.nonce}, From: {transaction.from}
+                                    style={{ whiteSpace: "normal", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}
+                                >Transaction = Nonce: {transaction.nonce}, From: {transaction.from?.substring(0, 45)} ...
                                 </option>
-
                             ))
                         ) : (
                             <option disabled>No transactions</option>
@@ -102,9 +113,7 @@ const MinedTransactions = () => {
                     </select>
                 ))
             ) : (
-                <p style={{ textAlign: "center", color: "gray" }}>
-                    No mined blocks found.
-                </p>
+                <p style={{ textAlign: "center", color: "gray" }}>No mined blocks found.</p>
             )}
 
             <button
@@ -115,12 +124,9 @@ const MinedTransactions = () => {
                     border: "2px solid white",
                     color: "black",
                     backgroundColor: "rgb(162, 168, 118)",
-                }}
-                onClick={handleBack}
-            >
-                Back
+                }} onClick={handleBack} >Back
             </button>
-        </div>
+        </div >
     );
 };
 
