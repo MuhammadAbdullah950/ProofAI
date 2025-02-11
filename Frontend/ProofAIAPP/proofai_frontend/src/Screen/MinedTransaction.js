@@ -2,15 +2,30 @@ import React from "react";
 import { FaDownload } from "react-icons/fa";
 import ReactJson from "react-json-view";
 import useScreenMinedTransaction from "../hooks/useScreenMinedTransaction";
+import { useLocation } from "react-router-dom";
 
 const MinedTransaction = () => {
+
+    const [showTransaction, setShowTransaction] = React.useState(false);
+    const location = useLocation();
+    const { transaction } = location.state;
+    const [isDiabled, setisDiabled] = React.useState(false);
+
+    React.useEffect(() => {
+        if (transaction?.type === "block") {
+            setisDiabled(true);
+        }
+    }, [transaction])
+
+    const handleBack = () => {
+        window.history.back();
+    };
+
+
     const {
-        transaction,
-        handleBack,
         handleModelDownload,
         handlTransactionLogDownload,
-        isDiabled,
-    } = useScreenMinedTransaction();
+    } = useScreenMinedTransaction({ transaction, showTransaction, setShowTransaction, handleBack });
 
     return (
         <div className="flex flex-col min-h-screen p-6 bg-gray-900 text-white">

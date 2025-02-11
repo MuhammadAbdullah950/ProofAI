@@ -1,24 +1,10 @@
 import React from "react";
 import { FaDownload } from 'react-icons/fa';
 import ReactJson from 'react-json-view';
-import { useLocation } from "react-router-dom";
 
-const useScreenMinedTransaction = ({ }) => {
+const useScreenMinedTransaction = ({ transaction, showTransaction, setShowTransaction, handleBack }) => {
 
-    const [showTransaction, setShowTransaction] = React.useState(false);
-    const location = useLocation();
-    const { transaction } = location.state;
-    const [isDiabled, setisDiabled] = React.useState(false);
 
-    React.useEffect(() => {
-        if (transaction?.type === "block") {
-            setisDiabled(true);
-        }
-    }, [transaction])
-
-    const handleBack = () => {
-        window.history.back();
-    };
 
     const handleModelDownload = () => {
         try {
@@ -74,7 +60,6 @@ const useScreenMinedTransaction = ({ }) => {
         const modelData = atob(transaction.transactionLog); // Decode base64 string
         const byteArray = new Uint8Array(modelData.length);
 
-        // Convert string to byte array
         for (let i = 0; i < modelData.length; i++) {
             byteArray[i] = modelData.charCodeAt(i);
         }
@@ -84,7 +69,7 @@ const useScreenMinedTransaction = ({ }) => {
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'TransactionLogs.txt'; // Specify the file name here
+        a.download = 'TransactionLogs.txt';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

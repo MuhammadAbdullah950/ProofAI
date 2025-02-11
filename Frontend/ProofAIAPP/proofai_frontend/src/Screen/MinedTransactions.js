@@ -13,7 +13,7 @@ const MinedTransactions = () => {
 
     return (
         <div className="min-h-screen  p-4 sm:p-6">
-            {/* Header Section */}
+
             <div className="max-w-6xl mx-auto">
                 <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -40,7 +40,7 @@ const MinedTransactions = () => {
                     </div>
                 </div>
 
-                {/* Blocks Grid */}
+
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {minedBlock && minedBlock.length > 0 ? (
                         minedBlock.map((block) => (

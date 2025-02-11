@@ -22,18 +22,16 @@ const useScreenMinedTransactions = () => {
                 showAlert(response.error, "error");
             } else {
                 if (response.blocks && Array.isArray(response.blocks)) {
-                    // Ensure blocks is an array
                     setMinedBlock(response.blocks);
                     setTempMinedBlock(response.blocks);
                 } else {
-                    // Set minedBlock to an empty array if blocks is null or not an array
                     setMinedBlock([]);
                     showAlert("No mined blocks found.", "success");
                 }
             }
         } catch (error) {
             showAlert("Failed to fetch mined blocks.", "error");
-            setMinedBlock([]); // Safely handle error by resetting minedBlock to an empty array
+            setMinedBlock([]);
         } finally {
             setLoading(false);
         }

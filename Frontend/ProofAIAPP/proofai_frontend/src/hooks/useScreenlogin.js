@@ -1,4 +1,5 @@
 import React from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoginBox from "../Components/LoginBox";
 import Footer from "../Components/Footer";
@@ -19,8 +20,8 @@ const useScreenlogin = () => {
     useEffect(() => {
         const updateHeight = () => {
             const viewportHeight = window.innerHeight;
-            const minHeight = 400; // Minimum height for the auth box
-            const padding = 48; // 24px top + 24px bottom
+            const minHeight = 400;
+            const padding = 48;
             const calculatedHeight = viewportHeight - padding;
 
             setBoxHeight(Math.max(minHeight, calculatedHeight));

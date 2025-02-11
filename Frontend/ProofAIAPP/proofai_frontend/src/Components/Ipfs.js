@@ -10,16 +10,16 @@ const IPFS = ({ setipfsCont }) => {
         <div className="min-h-screen flex items-center justify-center pb-16">
             <div className="mx-auto max-w-2xl">
                 <div className="overflow-hidden rounded-xl bg-white/10 backdrop-blur-lg">
-                    {/* Header */}
+
                     <div className="border-b border-white/10 bg-white/5 p-6">
                         <h2 className="text-center text-2xl font-bold text-white">
                             Upload Folder to IPFS
                         </h2>
                     </div>
 
-                    {/* Content */}
+
                     <div className="space-y-6 p-6">
-                        {/* Upload Section */}
+
                         <div className="rounded-lg border-2 border-dashed border-slate-400/25 p-6 text-center">
                             <input
                                 type="file"
@@ -50,14 +50,14 @@ const IPFS = ({ setipfsCont }) => {
                             </label>
                         </div>
 
-                        {/* Loading Spinner */}
+
                         {waitingIcon && (
                             <div className="flex justify-center py-4">
                                 <ClipLoader color="#94a3b8" loading={true} size={40} />
                             </div>
                         )}
 
-                        {/* CID Display */}
+
                         {uploadResponse && (
                             <div className="overflow-hidden rounded-lg bg-slate-800/50 p-4">
                                 <p className="mb-2 text-sm font-medium text-slate-300">
@@ -78,7 +78,7 @@ const IPFS = ({ setipfsCont }) => {
                             </div>
                         )}
 
-                        {/* Back Button */}
+
                         <button
                             onClick={handleBackButton}
                             className="flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-800"

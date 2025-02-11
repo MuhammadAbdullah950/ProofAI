@@ -25,7 +25,6 @@ const useScreenCurrentlyBlock = () => {
             if (response.block !== "null") {
                 setBlock(response.block)
             } else {
-                // make json object which shows no block is currently mining
                 setBlock({ "Currently Mining Block": "No Block is currently mining" })
             }
         }
