@@ -1,38 +1,23 @@
 import React from "react";
 import ReactJson from 'react-json-view';
 import { ClipLoader } from 'react-spinners';
-import { useProofAiService } from '../ProofaiServiceContext';
-import { useAlert } from '../Context/AlertContext';
 import { FaCheckCircle } from 'react-icons/fa';
-import { useEffect } from "react";
+import useMiningTransaction from "../hooks/useMiningTransaction";
 
 const MiningTransaction = ({ setmineTransaction, transactionJson }) => {
-    const handleBack = () => {
-        setmineTransaction(false);
-    };
-
-    const [isTransactionMined, setisTransactionMined] = React.useState(false);
-    const [intervalId, setIntervalId] = React.useState(null);
-    const proofAiService = useProofAiService();
-
-    const chkTransactionStatus = async () => {
-        const response = await proofAiService.transactionConfirmation(transactionJson.from, transactionJson.nonce);
-        if (response.transaction === "Confirmed") {
-            setisTransactionMined(true);
-        } else {
-            alert("Transaction is not mined yet")
-        }
-    }
+    const { isTransactionMined, chkTransactionStatus, handleBack } = useMiningTransaction({ setmineTransaction, transactionJson });
 
     return (
-        <div style={styles.container}>
-            <h1 style={styles.label}>Mining Transaction</h1>
-            {!isTransactionMined &&
+        <div className="flex flex-col items-center gap-4 p-6 bg-gray-300 rounded-xl shadow-lg max-w-3xl w-full mx-auto mt-16">
+            <h1 className="text-2xl font-bold text-gray-800 text-center">Mining Transaction</h1>
+
+            {!isTransactionMined && (
                 <>
-                    <div style={styles.loaderContainer}>
+                    <div className="flex justify-center items-center h-12">
                         <ClipLoader color={'#123abc'} loading={true} size={50} />
                     </div>
-                    <div style={styles.jsonBox}>
+
+                    <div className="w-full h-72 p-4 bg-gray-900 text-white rounded-md shadow-md overflow-auto">
                         <ReactJson
                             src={transactionJson}
                             theme="monokai"
@@ -42,66 +27,26 @@ const MiningTransaction = ({ setmineTransaction, transactionJson }) => {
                         />
                     </div>
                 </>
-            }
-            {isTransactionMined && <FaCheckCircle color="green" size={20} />}
-            <div style={{ display: "flex", gap: "10px" }} >
-                <button style={styles.button} onClick={chkTransactionStatus}>Check Status</button>
-                <button style={styles.button} onClick={handleBack}>Back</button>
+            )}
+
+            {isTransactionMined && <FaCheckCircle className="text-green-500 text-2xl" />}
+
+            <div className="flex gap-4 mt-4">
+                <button
+                    className="px-4 py-2 bg-blue-700 text-white font-semibold rounded-md border-2 border-gray-700 hover:bg-blue-800 transition"
+                    onClick={chkTransactionStatus}
+                >
+                    Check Status
+                </button>
+                <button
+                    className="px-4 py-2 bg-blue-700 text-white font-semibold rounded-md border-2 border-gray-700 hover:bg-blue-800 transition"
+                    onClick={handleBack}
+                >
+                    Back
+                </button>
             </div>
         </div>
     );
 };
 
 export default MiningTransaction;
-
-const styles = {
-    container: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '10px',
-        padding: '10px',
-        backgroundColor: "rgb(152, 156, 158)",
-        borderRadius: '10px',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        width: '80%',
-        maxWidth: '1200px',
-        margin: 'auto',
-        marginTop: '60px',
-    },
-    label: {
-        fontSize: '27px',
-        fontWeight: 'bold',
-        color: '#333',
-        textAlign: 'center',
-    },
-    loaderContainer: {
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '50px',
-    },
-    jsonBox: {
-        width: '100%',
-        height: '300px',
-        padding: '10px',
-        backgroundColor: '#282c34',
-        borderRadius: '5px',
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-        overflowY: 'auto',
-        overflowX: 'auto',
-        wordWrap: 'break-word',
-    },
-    button: {
-        padding: '10px 20px',
-        border: 'none',
-        borderRadius: '5px',
-        backgroundColor: 'rgb(15, 67, 89)',
-        color: '#fff',
-        cursor: 'pointer',
-        fontSize: '14px',
-        fontWeight: 'bold',
-        transition: 'background-color 0.3s ease',
-        border: '2px solid rgb(54, 53, 50)',
-    },
-};

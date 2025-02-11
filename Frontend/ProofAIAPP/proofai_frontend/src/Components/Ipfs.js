@@ -1,149 +1,96 @@
-import React, { useState } from 'react';
-import { useProofAiService } from '../ProofaiServiceContext';
-import { useAlert } from "../Context/AlertContext";
+import React from 'react';
 import { ClipLoader } from 'react-spinners';
-import axios from 'axios';
+import { Upload, Copy, ArrowLeft } from 'lucide-react';
+import useIpfs from '../hooks/useIpfs';
 
 const IPFS = ({ setipfsCont }) => {
-    const [uploadResponse, setUploadResponse] = useState("");
-    const [ipfsContent, setIpfsContent] = useState(false);
-    const [waitingIcon, setWaitingIcon] = useState(false);
-
-    const ProofAiService = useProofAiService();
-    const { showAlert } = useAlert();
-    const handleBackButton = () => setipfsCont(false);
-
-    const handleUpload = async (event) => {
-        setIpfsContent(false);
-        setUploadResponse("");
-        const files = event.target.files;
-        if (!files.length) return;
-        const data = new FormData();
-        Array.from(files).forEach(file => data.append("files", file));
-        setWaitingIcon(true);
-
-        try {
-            const response = await ProofAiService.uploadDataOnIPfs(data);
-            setWaitingIcon(false);
-
-            if (response.error) {
-                showAlert(`Error during upload: ${response.error}`, "error");
-            } else {
-                setUploadResponse(response);
-            }
-        } catch (error) {
-            setWaitingIcon(false);
-            alert(error)
-            showAlert("An unexpected error occurred during upload.", "error");
-        }
-    };
-
-    const handleCopyCID = () => {
-        navigator.clipboard.writeText(uploadResponse);
-        showAlert("CID copied to clipboard!", "success");
-    };
+    const { uploadResponse, waitingIcon, handleUpload, handleCopyCID, handleBackButton } = useIpfs({ setipfsCont });
 
     return (
-        <div style={styles.box}>
-            <label style={styles.label}>Upload Folder to IPFS</label>
-            <input
-                type="file"
-                id="file"
-                style={styles.input}
-                webkitdirectory="true"
-                directory="true"
-                multiple
-                onChange={handleUpload}
-            />
-            <button style={styles.button}>Upload</button>
+        <div className="min-h-screen flex items-center justify-center pb-16">
+            <div className="mx-auto max-w-2xl">
+                <div className="overflow-hidden rounded-xl bg-white/10 backdrop-blur-lg">
+                    {/* Header */}
+                    <div className="border-b border-white/10 bg-white/5 p-6">
+                        <h2 className="text-center text-2xl font-bold text-white">
+                            Upload Folder to IPFS
+                        </h2>
+                    </div>
 
-            {waitingIcon && <ClipLoader color="#123abc" loading={true} size={50} />}
+                    {/* Content */}
+                    <div className="space-y-6 p-6">
+                        {/* Upload Section */}
+                        <div className="rounded-lg border-2 border-dashed border-slate-400/25 p-6 text-center">
+                            <input
+                                type="file"
+                                id="file"
+                                className="hidden"
+                                webkitdirectory="true"
+                                directory="true"
+                                multiple
+                                onChange={handleUpload}
+                            />
+                            <label
+                                htmlFor="file"
+                                className="group cursor-pointer"
+                            >
+                                <div className="space-y-4">
+                                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-700 group-hover:bg-slate-600">
+                                        <Upload className="h-6 w-6 text-slate-200" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-300">
+                                            Drag and drop your folder here, or click to browse
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-400">
+                                            All files within the folder will be uploaded
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
 
-            {uploadResponse && (
-                <div style={styles.cidBox}>
-                    <label>CID of Uploaded Folder:</label>
-                    <div style={styles.cidContainer}>
-                        <span style={styles.cidText}>{uploadResponse}</span>
-                        <button style={styles.copyButton} onClick={handleCopyCID}>
-                            Copy
+                        {/* Loading Spinner */}
+                        {waitingIcon && (
+                            <div className="flex justify-center py-4">
+                                <ClipLoader color="#94a3b8" loading={true} size={40} />
+                            </div>
+                        )}
+
+                        {/* CID Display */}
+                        {uploadResponse && (
+                            <div className="overflow-hidden rounded-lg bg-slate-800/50 p-4">
+                                <p className="mb-2 text-sm font-medium text-slate-300">
+                                    CID of Uploaded Folder:
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <code className="flex-1 overflow-x-auto rounded bg-slate-900/50 p-2 text-sm text-slate-300">
+                                        {uploadResponse}
+                                    </code>
+                                    <button
+                                        onClick={handleCopyCID}
+                                        className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-800"
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                        Copy
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Back Button */}
+                        <button
+                            onClick={handleBackButton}
+                            className="flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-800"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Back
                         </button>
                     </div>
                 </div>
-            )}
-
-            <button style={{ ...styles.button, width: "30%" }} onClick={handleBackButton}>Back</button>
+            </div>
         </div>
     );
 };
 
 export default IPFS;
-
-const styles = {
-    label: {
-        fontSize: "1.5rem",
-        fontWeight: "bold",
-        color: "#333",
-        textAlign: "center",
-        marginBottom: "10px",
-    },
-    box: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "15px",
-        padding: "20px",
-        backgroundColor: "#989c9e",
-        borderRadius: "10px",
-        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-        width: "50%",
-        margin: "0 auto",
-    },
-    input: {
-        display: "block",
-        width: "100%",
-        padding: "10px",
-        borderRadius: "5px",
-        border: "1px solid #ccc",
-        boxSizing: "border-box",
-    },
-    button: {
-        padding: "10px 20px",
-        border: "none",
-        borderRadius: "5px",
-        backgroundColor: "#454f53",
-        color: "#fff",
-        cursor: "pointer",
-        fontSize: "14px",
-        fontWeight: "bold",
-        transition: "background-color 0.3s ease",
-        border: "2px solid #080807",
-    },
-    cidBox: {
-        padding: "10px",
-        backgroundColor: "#fff",
-        borderRadius: "5px",
-        border: "1px solid #ccc",
-        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-    },
-    cidContainer: {
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginTop: "5px",
-    },
-    cidText: {
-        fontSize: "14px",
-        color: "#333",
-        wordBreak: "break-word",
-    },
-    copyButton: {
-        padding: "5px 10px",
-        fontSize: "12px",
-        color: "#fff",
-        backgroundColor: "#4CAF50",
-        border: "none",
-        borderRadius: "5px",
-        cursor: "pointer",
-        fontWeight: "bold",
-        transition: "background-color 0.3s ease",
-    },
-};

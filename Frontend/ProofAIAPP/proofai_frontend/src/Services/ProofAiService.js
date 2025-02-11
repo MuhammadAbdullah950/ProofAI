@@ -153,15 +153,15 @@ class ProofAiService {
             const params = new URLSearchParams();
             params.append('PubKey', PubKey);
             params.append('PrvKey', PrvKey);
-    
+
             const response = await axios.post(`${this.baseUrl}/login`, params, {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
-    
+
             if (response.data.login === "Success") {
                 this.isUserLoggedIn = true;  // Fixed typo
             }
-    
+
             return response.data;
         } catch (error) {
             if (error.response) {
@@ -171,41 +171,41 @@ class ProofAiService {
             }
         }
     }
-    
+
 
     async setRole(role) {
-        if (!this.isUserLoggedIn) {  
+        if (!this.isUserLoggedIn) {
             return { error: "Please Login First" };
         }
-    
+
         const response = await this.getCurrentlyMinBlock();
 
         if (response.block !== "null" && response.block !== null) {  // Fixed condition
-                return { error: "Cannot change role to Validator while mining is in progress" };
+            return { error: "Cannot change role to Validator while mining is in progress" };
         }
-        
 
-        
-    
+
+
+
         try {
             const params = new URLSearchParams();
             params.append('role', role);
-            
+
             const response = await axios.post(`${this.baseUrl}/setRole`, params, {
                 headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
-    
+
             return response.data;
         } catch (error) {
             console.error("API call failed:", error);
-    
-            return { 
+
+            return {
                 error: error.response?.data || error.message || "Unknown Error"
             };
         }
     }
-    
-    
+
+
 
     async transactionConfirmation(from, nonce) {
         try {

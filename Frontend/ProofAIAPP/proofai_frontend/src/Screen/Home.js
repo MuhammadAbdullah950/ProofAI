@@ -1,173 +1,76 @@
-import React, { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useProofAiService } from "../ProofaiServiceContext";
-
+import React from "react";
+import { ArrowRight, Plus, Pickaxe, Settings } from "lucide-react";
+import useHome from "../hooks/useHome";
 
 const Home = () => {
-    const navigate = useNavigate()
-
-    const handleNewTransaction = () => {
-        navigate('/NewTransaction')
-    }
-
-    const handleMinedTransactions = () => {
-        navigate('/MinedTransactions')
-    }
-
-    const ProofAiService = useProofAiService()
-
-    const handleMiningTransaction = async () => {
-        navigate('/CurrentlyBlock')
-    }
+    const {
+        handleNewTransaction,
+        handleMinedTransactions,
+        handleMiningTransaction,
+        ActionButton
+    } = useHome();
 
     return (
+        <div className="min-h-screen flex items-center justify-center p-4 sm:p-6">
+            <div className="w-full max-w-lg">
+                <div className="backdrop-blur-lg bg-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                    <div className="p-6 sm:p-8 border-b border-white/10">
+                        <div className="flex items-center justify-between">
+                            <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold text-white">
+                                <span className="text-3xl sm:text-4xl">💳</span>
+                                <span className="bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+                                    Transaction Dashboard
+                                </span>
+                            </h1>
+                        </div>
+                    </div>
 
-        <div style={styles.container} >
-            <div style={styles.maxWidth}>
-                <div style={{ ...styles.boxShadow, ...styles.bgGray }}>
-                    <div style={styles.padding}>
-                        <h2 style={{ ...styles.textCenter, ...styles.textWhite, ...styles.text3xl, ...styles.fontExtrabold }}>Transaction Dashboard</h2>
+                    <div className="p-6 sm:p-8">
+                        <div className="space-y-4">
+                            <button
+                                onClick={handleNewTransaction}
+                                className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 p-px focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+                            >
+                                <div className="relative flex items-center justify-between w-full px-6 py-4 bg-gray-900 rounded-xl transition-all duration-300 group-hover:bg-transparent">
+                                    <div className="flex items-center gap-4">
+                                        <Plus className="w-6 h-6 text-amber-400" />
+                                        <span className="text-lg font-semibold text-white">New Transaction</span>
+                                    </div>
+                                    <ArrowRight className="w-5 h-5 text-amber-400 transform transition-transform duration-300 group-hover:translate-x-1" />
+                                </div>
+                            </button>
 
-                        <div style={{ ...styles.roundedShadow, ...styles.mt4, display: "flex", flexDirection: "column", gap: "10px" }}>
-                            <button style={styles.input} onClick={handleNewTransaction}  >New Transaction</button>
-                            <button style={styles.input} onClick={handleMinedTransactions} >Mined Blocks</button>
-                            <button style={styles.input} onClick={handleMiningTransaction} >Currently Mining block</button>
+                            <button
+                                onClick={handleMinedTransactions}
+                                className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 p-px focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+                            >
+                                <div className="relative flex items-center justify-between w-full px-6 py-4 bg-gray-900 rounded-xl transition-all duration-300 group-hover:bg-transparent">
+                                    <div className="flex items-center gap-4">
+                                        <Pickaxe className="w-6 h-6 text-blue-400" />
+                                        <span className="text-lg font-semibold text-white">View Mined Blocks</span>
+                                    </div>
+                                    <ArrowRight className="w-5 h-5 text-blue-400 transform transition-transform duration-300 group-hover:translate-x-1" />
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={handleMiningTransaction}
+                                className="w-full group relative overflow-hidden rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 p-px focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-2 focus:ring-offset-gray-900"
+                            >
+                                <div className="relative flex items-center justify-between w-full px-6 py-4 bg-gray-900 rounded-xl transition-all duration-300 group-hover:bg-transparent">
+                                    <div className="flex items-center gap-4">
+                                        <Settings className="w-6 h-6 text-purple-400 animate-spin-slow" />
+                                        <span className="text-lg font-semibold text-white">Currently Mining Block</span>
+                                    </div>
+                                    <ArrowRight className="w-5 h-5 text-purple-400 transform transition-transform duration-300 group-hover:translate-x-1" />
+                                </div>
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div >
+            </div>
         </div>
     );
-}
+};
 
 export default Home;
-
-
-const styles = {
-
-    container: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: "100%",
-        height: "100vh",
-        backgroundColor: "#f4f6f7",
-        flexDirection: 'column',
-    },
-
-    label: {
-        fontSize: '0.975rem',
-        lineHeight: '1.25rem',
-        color: '#cbd5e0',
-        marginbottom: '0.5rem',
-    },
-
-    maxWidth: {
-        maxWidth: '32rem',
-        width: '100%',
-    },
-    boxShadow: {
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-    },
-    bgGray: {
-        backgroundColor: '#2d3748',
-        borderRadius: '0.5rem',
-        overflow: 'hidden',
-    },
-    padding: {
-        padding: '2rem',
-    },
-    textCenter: {
-        textAlign: 'center',
-    },
-    textWhite: {
-        color: '#fff',
-    },
-    text3xl: {
-        fontSize: '1.875rem',
-        lineHeight: '2.25rem',
-    },
-    fontExtrabold: {
-        fontWeight: '800',
-    },
-    mt4: {
-        marginTop: '1rem',
-    },
-    textGray: {
-        color: '#a0aec0',
-    },
-    mt8: {
-        marginTop: '2rem',
-    },
-    roundedShadow: {
-        borderRadius: '0.375rem',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-    },
-    srOnly: {
-        position: 'absolute',
-        width: '1px',
-        height: '1px',
-        padding: '0',
-        margin: '-1px',
-        overflow: 'hidden',
-        clip: 'rect(0, 0, 0, 0)',
-        border: '0',
-    },
-    input: {
-        appearance: 'none',
-        display: 'block',
-        width: '100%',
-        padding: '0.75rem',
-        border: '1px solid #4a5568',
-        backgroundColor: '#4a5568',
-        color: '#fff',
-        borderRadius: '0.375rem',
-        fontSize: '15px',
-
-        // space bwteen character
-        letterSpacing: '0.5px',
-        border: '1px solid #bc8c49',
-
-    },
-    flex: {
-        display: 'flex',
-    },
-    itemsCenter: {
-        alignItems: 'center',
-    },
-    justifyBetween: {
-        justifyContent: 'space-between',
-    },
-    checkbox: {
-        height: '1rem',
-        width: '1rem',
-        color: '#667eea',
-        borderColor: '#4a5568',
-        borderRadius: '0.25rem',
-    },
-    ml2: {
-        marginLeft: '0.5rem',
-    },
-    block: {
-        display: 'block',
-    },
-    textSm: {
-        fontSize: '0.875rem',
-        lineHeight: '1.25rem',
-    },
-    textGray: {
-        color: '#a0aec0',
-    },
-    button: {
-        padding: '10px 20px',
-        border: 'none',
-        borderRadius: '5px',
-        backgroundColor: '#333',
-        color: '#fff',
-        cursor: 'pointer',
-        fontSize: '14px',
-        fontWeight: 'bold',
-        transition: 'background-color 0.3s ease',
-        border: '2px solid #bc8c49',
-    },
-};

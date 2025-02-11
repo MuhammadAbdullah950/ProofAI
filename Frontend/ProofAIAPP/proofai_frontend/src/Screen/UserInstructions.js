@@ -1,36 +1,54 @@
 import React from "react";
+import { ArrowLeft } from "lucide-react";
 
 export default function UserInstructions() {
-
     const handleBack = () => {
         window.history.back();
-    }
+    };
+
     return (
-        <div className="p-6 bg-gray-100 rounded-lg shadow-md" style={styles.container} >
-            <h1 className="text-xl font-bold mb-4"> Model Training Instructions</h1>
-            <ol className="list-decimal list-inside space-y-2">
-                <li>Below is an example to create a directory structure.</li>
-                <pre className="bg-gray-200 p-4 rounded-md text-sm">
-                    {`📂 project_root
-│── 📂 dataset  
-│   ├── iris.data.txt  # Dataset file  , you can use any dataset files and replace the name here 
-│
-│── 📂 model
-│   ├── requirements.txt  # Dependencies , contain all the dependencies required for the model
-│   ├── model.py          # Model training script, you can place as much files as you want but make sure main file is model.py`}
-                </pre>
-                <li>
-                    Inside <strong>model/requirements.txt</strong>, add the dependencies:
-                    <pre className="bg-gray-200 p-4 rounded-md text-sm">{`
-pandas
-requests
-scikit-learn
-joblib`}</pre>
-                </li>
-                <li>
-                    In <strong>model/model.py</strong>, include the following code:
-                    <pre className="bg-gray-200 p-4 rounded-md text-sm overflow-x-auto">{`
-import pandas as pd
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-2">
+            <div className="mx-auto max-w-4xl rounded-lg bg-white/95 shadow-xl backdrop-blur">
+                <div className="border-b border-slate-200 p-6">
+                    <h1 className="text-2xl font-bold text-slate-800">
+                        Model Training Instructions
+                    </h1>
+                </div>
+
+                <div className="p-6">
+                    <ol className="space-y-6 text-slate-700">
+                        <li className="flex flex-col gap-2">
+                            <p className="font-medium">Below is an example to create a directory structure:</p>
+                            <div className="rounded-lg bg-slate-100 p-4 font-mono text-sm text-slate-800">
+                                📂 project_root<br />
+                                │── 📂 dataset<br />
+                                │   ├── iris.data.txt  # Dataset file, you can use any dataset files and replace the name here<br />
+                                │<br />
+                                │── 📂 model<br />
+                                │   ├── requirements.txt  # Dependencies, contain all the dependencies required for the model<br />
+                                │   ├── model.py          # Model training script, you can place as much files as you want but make sure main file is model.py
+                            </div>
+                        </li>
+
+                        <li className="flex flex-col gap-2">
+                            <p className="font-medium">
+                                Inside <span className="rounded bg-slate-200 px-1 py-0.5 font-mono">model/requirements.txt</span>, add the dependencies:
+                            </p>
+                            <div className="rounded-lg bg-slate-100 p-4 font-mono text-sm text-slate-800">
+                                pandas<br />
+                                requests<br />
+                                scikit-learn<br />
+                                joblib
+                            </div>
+                        </li>
+
+                        <li className="flex flex-col gap-2">
+                            <p className="font-medium">
+                                In <span className="rounded bg-slate-200 px-1 py-0.5 font-mono">model/model.py</span>, include the following code:
+                            </p>
+                            <div className="max-h-96 overflow-y-auto rounded-lg bg-slate-100 p-4 font-mono text-sm text-slate-800">
+                                <pre className="whitespace-pre-wrap">
+                                    {`import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 import joblib  
@@ -39,7 +57,7 @@ import json
 import os
 
 # Get dataset path from command-line arguments
-dataset_path = os.path.join(sys.argv[1], "iris.data.txt") # sys.argv[1] is the dataset directory path and you can replace the file name with your dataset file name
+dataset_path = os.path.join(sys.argv[1], "iris.data.txt")
 model_filename = "modelFile.pkl"
 
 try:
@@ -70,55 +88,27 @@ try:
     knn.fit(X_train, y_train)
 
     # Save trained model
-    joblib.dump(knn, model_filename)                            # necessary Step
-    response = {"model_file": model_filename, "error": None}    # necessary Step
-    print(json.dumps(response))                                 # necessary Step
+    joblib.dump(knn, model_filename)
+    response = {"model_file": model_filename, "error": None}
+    print(json.dumps(response))
 
 except Exception as e:
-    response = {"model_file": None, "error": str(e)}  # necessary Step
-    print(json.dumps(response))                   # necessary Step
-          `}</pre>
-                </li>
-            </ol>
+    response = {"model_file": None, "error": str(e)}
+    print(json.dumps(response))`}
+                                </pre>
+                            </div>
+                        </li>
+                    </ol>
 
-            <button
-                style={{
-                    ...styles.button,
-                    width: "10%",
-                    borderWidth: "8px",
-                    border: "2px solid white",
-                    color: "black",
-                    backgroundColor: "rgb(162, 168, 118)",
-                }}
-                onClick={handleBack}
-            >
-                Back
-            </button>
+                    <button
+                        onClick={handleBack}
+                        className="mt-6 flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                    </button>
+                </div>
+            </div>
         </div>
     );
-}
-
-const styles = {
-
-    container: {
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        minHeight: "100vh",
-        backgroundColor: "#f4f6f7",
-        boxSizing: "border-box",
-        padding: "20px",
-    },
-
-    button: {
-        padding: "12px",
-        border: "2px solid rgb(57, 96, 111)",
-        borderRadius: "5px",
-        color: "white",
-        backgroundColor: "rgb(41, 41, 43)",
-        cursor: "pointer",
-        fontSize: "16px",
-        fontWeight: "bold",
-        transition: "all 0.3s ease",
-    },
 }

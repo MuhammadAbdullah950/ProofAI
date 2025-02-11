@@ -1,81 +1,34 @@
 import React from "react";
+import { LogOut, Settings } from "lucide-react";
 import { useProofAiService } from "../ProofaiServiceContext";
+import useHeader from "../hooks/useHeader";
 
 const Header = ({ handleLogout }) => {
-    const ProofAiService = useProofAiService();
-    const [role, setRole] = React.useState(true);
-
-
-    const handleRoleChange = async (e) => {
-        const minerRole = e.target.value;
-        const response = await ProofAiService.setRole(minerRole);
-    
-        if (response.error) {  // Corrected error check
-            alert(response.error);  // Show actual error message
-            e.target.value = "Miner";
-            return;
-        }
-    
-        setRole(minerRole);
-    };
-    
-
+    const { handleRoleChange, role } = useHeader();
 
     return (
-        <div style={styles.headerContainer} >
-            <label style={styles.appName} >ProofAI</label>
+        <header className="fixed top-0 left-0 w-full bg-gray-800 shadow-md z-50 px-4 py-3 flex items-center justify-between">
+            <div className="text-2xl font-bold text-white">ProofAI</div>
 
-            <div style={styles.buttonContainer}>
-                <select style={styles.Button} onChange={handleRoleChange} >
-                    <option value="Miner" selected>Miner</option>
-                    <option value="Validator" >Validator</option>
+            <div className="flex items-center space-x-4">
+                <select
+                    onChange={handleRoleChange}
+                    className="bg-gray-700 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="Miner">Miner</option>
+                    <option value="Validator">Validator</option>
                 </select>
-                <button style={styles.Button} onClick={handleLogout} >Logout</button>
-            </div>
 
-        </div>
+                <button
+                    onClick={handleLogout}
+                    className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors flex items-center space-x-2"
+                >
+                    <LogOut size={18} />
+                    <span>Logout</span>
+                </button>
+            </div>
+        </header>
     );
 }
+
 export default Header;
-
-const styles = {
-    headerContainer: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '10px 20px',
-        backgroundColor: '#2c3e50',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        boxSizing: 'border-box',
-    },
-    appName: {
-        fontSize: '24px',
-        fontWeight: 'bold',
-        color: '#ffffff',
-    },
-
-    buttonContainer: {
-        display: 'flex',
-        gap: '10px',
-    },
-
-    Button: {
-        padding: '8px 16px',
-        border: 'none',
-        borderRadius: '5px',
-        backgroundColor: '#333',
-        color: '#fff',
-        cursor: 'pointer',
-        fontSize: '14px',
-        transition: 'background-color 0.3s ease',
-        border: '2px solid #595f66',
-    },
-    ButtonHover: { // Button Hover
-        backgroundColor: '#0056b3',
-    },
-    ButtonFocus: {
-        outline: 'none',
-        boxShadow: '0 0 0 2px rgba(0, 123, 255, 0.5)',
-    },
-
-};

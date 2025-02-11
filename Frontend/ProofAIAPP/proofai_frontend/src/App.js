@@ -1,159 +1,89 @@
-import React, { useEffect, useState } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
-import Login from './Screen/Login';
-import Home from './Screen/Home';
+import React, { useState, useEffect, useRef } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Header from './Components/Header';
-import NewTransaction from './Screen/NewTransaction';
-import MinedTransactions from './Screen/MinedTransactions';
-import MinedTransaction from './Screen/MinedTransaction';
-import CurrentlyBlock from "./Screen/CurrentlyBlock";
-import { useProofAiService } from "./ProofaiServiceContext";
-import { useAlert } from "./Context/AlertContext";
-import path from 'path-browserify';
-import UserInstructions from './Screen/UserInstructions';
+import useApp from './hooks/useApp';
 
-const { ipcRenderer } = window.require("electron");
+const App = () => {
+  const {
+    showModal,
+    setShowModal,
+    serviceMachineAddr,
+    setServiceMachineAddr,
+    isServiceAddressSet,
+    handleSetServiceMachineAddr,
+    handleLogout,
+    routes
+  } = useApp();
 
-
-function App() {
-  const navigate = useNavigate();
-  const ProofAiService = useProofAiService();
-  const { showAlert, hideAlert } = useAlert();
-
-  const [isServiceAddressSet, setIsServiceAddressSet] = useState(false);
-  const [serviceMachineAddr, setServiceMachineAddr] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [serviceButtondisable, setServiceButtondisable] = useState(false);
-
-
-
-  const handleLogout = async () => {
-    hideAlert();
-    const response = await ProofAiService.getCurrentlyMinBlock();
-    if (response.error) {
-      showAlert(response.error, "error");
-      return;
-    }
-
-    if (response.block !== "null") {
-      const userConfirmation = window.confirm("Do you want to continue with the current mining block?");
-      if (!userConfirmation) return;
-    }
-
-    const response1 = await ProofAiService.logout();
-    if (response1.error) {
-      showAlert(response1.error, "danger");
-      return;
-    }
-
-    sessionStorage.clear();
-    ipcRenderer.send("restart-app");
-  };
-
-  const handleSetServiceMachineAddr = async () => {
-    setServiceMachineAddr(serviceMachineAddr.trim());
-    setServiceButtondisable(true);
-    hideAlert();
-    const pingResponse = await ProofAiService.pingServiceMachineAddr(serviceMachineAddr);
-    if (pingResponse.error) {
-      showAlert(pingResponse.error, "error");
-      setServiceButtondisable(false);
-      return;
-    }
-
-    const response = await ProofAiService.setServiceMachineAddr(serviceMachineAddr);
-    setIsServiceAddressSet(true);
-    setShowModal(false);
-    setServiceButtondisable(false);
-  };
-
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const headerRef = useRef(null);
 
   useEffect(() => {
-    setShowModal(true);
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.getBoundingClientRect().height;
+        setHeaderHeight(height);
+      }
+    };
+
+    // Initial measurement
+    updateHeaderHeight();
+
+    // Add resize listener
+    window.addEventListener('resize', updateHeaderHeight);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', updateHeaderHeight);
   }, []);
 
-  const routes = [
-    { path: '/', element: <Login /> },
-    { path: '/Login', element: <Login /> },
-    { path: '/Home', element: <Home /> },
-    { path: '/NewTransaction', element: <NewTransaction /> },
-    { path: '/MinedTransactions', element: <MinedTransactions /> },
-    { path: '/MinedTransaction', element: <MinedTransaction /> },
-    { path: '/CurrentlyBlock', element: <CurrentlyBlock /> },
-    { path: '/UserInstructions', element: <UserInstructions /> }
-  ];
+  const ServiceAddressModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-96 text-center">
+        <h2 className="text-xl font-bold mb-4 text-gray-800">Enter Service Machine Address</h2>
+        <p className="text-sm text-gray-600 mb-4">Address Eg: 127.0.0.1:0000</p>
+        <input
+          type="text"
+          placeholder="Enter Address"
+          value={serviceMachineAddr}
+          onChange={(e) => setServiceMachineAddr(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <div className="flex justify-center space-x-4">
+          <button
+            onClick={handleSetServiceMachineAddr}
+            disabled={isServiceAddressSet}
+            className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <>
-      {showModal && (
-        <div className="modal">
-          <div className="modal-content">
-            <h2>Enter Service Machine Address </h2>
-            <p>Address Eg: 127.0.0.1:0000</p>
-            <input
-              type="text"
-              placeholder="Enter Address"
-              value={serviceMachineAddr}
-              onChange={(e) => setServiceMachineAddr(e.target.value)}
-            />
-            <div className="modal-actions">
-              <button onClick={handleSetServiceMachineAddr} disabled={isServiceAddressSet}  >Submit</button>
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen  bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700  ">
+      {showModal && <ServiceAddressModal />}
 
       {isServiceAddressSet && (
-        <div style={styles.container}>
-          <Header handleLogout={handleLogout} />
-          <div style={styles.content}>
-            <Routes>
-              {routes.map(({ path, element }) => (
-                <Route key={path} path={path} element={element} />
-              ))}
-            </Routes>
+        <div className="relative min-h-screen flex flex-col">
+          <div ref={headerRef} className="fixed top-0 left-0 right-0 z-40 bg-white shadow">
+            <Header handleLogout={handleLogout} />
+          </div>
+
+          <div style={{ paddingTop: `${headerHeight}px` }}>
+            <main className="p-4 mt-16">
+              <Routes>
+                {routes.map(({ path, element }) => (
+                  <Route key={path} path={path} element={element} />
+                ))}
+              </Routes>
+            </main>
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        .modal {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          background: rgba(0, 0, 0, 0.5);
-        }
-        .modal-content {
-          background: white;
-          padding: 20px;
-          border-radius: 8px;
-          text-align: center;
-        }
-        .modal-actions button {
-          margin: 5px;
-        }
-      `}</style>
-    </>
+    </div>
   );
-}
+};
 
 export default App;
-
-const styles = {
-  container: {
-    width: "100%",
-    minHeight: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    backgroundColor: "#f9f5f5",
-  },
-  content: {
-    flex: 1,
-    overflowY: "auto",
-  },
-};

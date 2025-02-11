@@ -1,81 +1,31 @@
-
 import React from "react";
-import ReactJson from 'react-json-view';
+import ReactJson from "react-json-view";
+import useMinedTrasnaction from "../hooks/useMinedTrasnaction";
 
 const MinedTrasnaction = ({ handleToggleTransactions }) => {
-    const jsonData = {
-        transactionId: "12345",
-        status: "mining",
-        details: {
-            amount: 100,
-            sender: "Alice",
-            receiver: "Bob"
-        }
-    };
-
-    const handleBack = () => {
-        handleToggleTransactions()
-    }
+    const { jsonData, handleBack } = useMinedTrasnaction({ handleToggleTransactions });
 
     return (
-        <div >
-            <h1 style={styles.label} >Mined Transactions</h1>
-            <ReactJson src={jsonData} theme="monokai" collapsed={false} displayDataTypes={false} />
-            <button style={styles.button} onClick={handleBack} >Back</button>
+        <div className="flex flex-col items-center p-6 bg-gray-200 rounded-xl shadow-lg w-full sm:w-2/3 mx-auto">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-800 mb-4">
+                Mined Transactions
+            </h1>
+            <div className="w-full bg-gray-900 p-4 rounded-lg shadow-md overflow-x-auto">
+                <ReactJson
+                    src={jsonData}
+                    theme="monokai"
+                    collapsed={false}
+                    displayDataTypes={false}
+                />
+            </div>
+            <button
+                onClick={handleBack}
+                className="mt-4 px-6 py-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg border-2 border-gray-700 transition duration-300"
+            >
+                Back
+            </button>
         </div>
     );
-}
+};
 
 export default MinedTrasnaction;
-
-
-const styles = {
-    label: {
-        fontSize: '27px',
-        fontWeight: 'bold',
-        color: '#333',
-        textAlign: 'center',
-    },
-
-    box: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        padding: '20px',
-        backgroundColor: "rgb(152, 156, 158)",
-        borderRadius: '10px',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        width: '50%',
-    },
-
-    input: {
-        display: 'block',
-        width: '100%',
-        padding: '8px',
-        marginTop: '5px',
-        borderRadius: '5px',
-        border: '1px solid #ccc',
-        boxSizing: 'border-box',
-    },
-
-    buttonContianer: {
-        gap: '10px',
-        display: 'flex',
-        justifyContent: 'space-around',
-    },
-    button: {
-        padding: '10px 20px',
-        border: 'none',
-        borderRadius: '5px',
-        backgroundColor: 'rgb(15, 67, 89)',
-        color: '#fff',
-        cursor: 'pointer',
-        fontSize: '14px',
-        fontWeight: 'bold',
-        transition: 'background-color 0.3s ease',
-        border: '2px solid rgb(54, 53, 50)',
-    },
-    buttonHover: {
-        backgroundColor: '#0056b3',
-    },
-}

@@ -1,131 +1,80 @@
 import React from "react";
-import { FaDownload } from 'react-icons/fa';
-import ReactJson from 'react-json-view';
-import { useProofAiService } from "../ProofaiServiceContext";
-import { useAlert } from "../Context/AlertContext";
-import { useNavigate } from "react-router-dom";
+import ReactJson from "react-json-view";
+import { ArrowLeft } from "lucide-react";
+import useScreenCurrentlyBlock from "../hooks/useScreenCurrentlyBlock";
 
-const CurrentlyBlock = ({ }) => {
-
-    const [showTransaction, setShowTransaction] = React.useState(false);
-    const [block, setBlock] = React.useState([]);
-
-    //  const alert = useAlert()
-    const ProofAiService = useProofAiService()
-    const handleBack = () => {
-        window.history.back();
-    };
-
-    const getBlock = async () => {
-
-        const response = await ProofAiService.getCurrentlyMinBlock()
-        if (response.error) {
-            return
-        } else {
-            if (response.block !== "null") {
-                setBlock(response.block)
-            } else {
-                // make json object which shows no block is currently mining
-                setBlock({ "Currently Mining Block": "No Block is currently mining" })
-            }
-        }
-    }
-
-    React.useEffect(() => {
-        getBlock()
-    }, [])
-
-
-
+const CurrentlyBlock = () => {
+    const { block, handleBack } = useScreenCurrentlyBlock();
 
     return (
-        <div style={styles.container}>
-            <div style={styles.headerContainer}>
-                <h1 style={styles.header}>Currently Mining Block</h1>
-            </div>
+        <div className="min-h-screen  p-6">
+            <div className="mx-auto max-w-7xl space-y-6">
+                {/* Header Section */}
+                <div className="rounded-lg bg-white/5 p-6 backdrop-blur-lg">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-lg bg-slate-700 p-2">
+                                <svg
+                                    className="h-6 w-6 text-emerald-400"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <rect x="2" y="2" width="20" height="20" rx="2" />
+                                    <path d="M12 2v20" />
+                                    <path d="M2 12h20" />
+                                </svg>
+                            </div>
+                            <h1 className="text-3xl font-bold text-white">
+                                Currently Mining Block
+                            </h1>
+                        </div>
+                    </div>
+                </div>
 
-            <div style={styles.buttonContainer}>
-                <ReactJson
-                    src={block}
-                    theme="monokai"
-                    collapsed={false}
-                    displayDataTypes={false}
-                />
+                {/* JSON Viewer Container */}
+                <div className="overflow-hidden rounded-lg bg-slate-800/50 backdrop-blur-lg">
+                    <div className="border-b border-slate-700 bg-slate-800 p-4">
+                        <h2 className="text-sm font-medium text-slate-300">
+                            Block Details
+                        </h2>
+                    </div>
+                    <div className="p-6">
+                        <div className="rounded-lg bg-slate-900">
+                            <ReactJson
+                                src={block}
+                                theme="monokai"
+                                collapsed={false}
+                                displayDataTypes={false}
+                                displayObjectSize={true}
+                                style={{
+                                    backgroundColor: 'transparent',
+                                    fontSize: '14px',
+                                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                                    padding: '1rem'
+                                }}
+                                iconStyle="square"
+                                enableClipboard={true}
+                                collapseStringsAfterLength={80}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Back Button */}
+                <button
+                    onClick={handleBack}
+                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-800"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back
+                </button>
             </div>
-            <button style={{ ...styles.button, width: "10%", borderWidth: "8px", border: "2px solid white", color: "black", backgroundColor: "rgb(162, 168, 118)", paddingBottom: "20px" }} onClick={handleBack}>Back </button>
         </div>
     );
 };
 
 export default CurrentlyBlock;
-
-const styles = {
-    container: {
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        minHeight: "100vh",
-        backgroundColor: "#f4f6f7",
-        boxSizing: "border-box",
-        padding: "20px 20px",
-
-    },
-    headerContainer: {
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "20px",
-    },
-    header: {
-        fontSize: "28px",
-        fontWeight: "bold",
-        color: "#333",
-        textAlign: "left",
-    },
-    dropdown: {
-        padding: "8px 12px",
-        border: "2px solid rgb(190, 206, 70)",
-        borderRadius: "5px",
-        backgroundColor: "#fff",
-        color: "#333",
-        fontSize: "14px",
-        cursor: "pointer",
-        outline: "none",
-    },
-    buttonContainer: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        overflowY: "auto",
-        maxHeight: "470px",
-        marginBottom: "5px",
-        backgroundColor: "rgb(124, 124, 124)",
-        padding: "10px 10px",
-
-    },
-    button: {
-        padding: "12px",
-        border: "2px solid rgb(57, 96, 111)",
-        width: "100vh",
-        borderRadius: "2px",
-        color: "white",
-        backgroundColor: "rgb(41, 41, 43)",
-        cursor: "pointer",
-        fontSize: "16px",
-        fontWeight: "bold",
-        transition: "all 0.3s ease",
-    },
-    backButton: {
-        padding: "10px 20px",
-        marginTop: "20px",
-        border: "2px solid #595f66",
-        borderRadius: "8px",
-        backgroundColor: "#555",
-        color: "#fff",
-        fontSize: "14px",
-        fontWeight: "bold",
-        cursor: "pointer",
-        transition: "all 0.3s ease",
-    },
-};

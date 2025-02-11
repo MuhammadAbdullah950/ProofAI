@@ -18,8 +18,10 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
+    "ajv": "^6.12.6",
     "glob": "^10.4.5",
     "install": "^0.13.0",
+    "lucide-react": "^0.475.0",
     "path-browserify": "^1.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -27,6 +29,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
     "electron": "^32.1.2",
     "electron-builder": "^24.13.3",
     "wait-on": "^7.2.0"

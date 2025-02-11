@@ -1,197 +1,98 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useProofAiService } from "../ProofaiServiceContext";
-import { useAlert } from "../Context/AlertContext";
-
+import { ChevronLeft, Box, Filter } from "lucide-react";
+import useScreenMinedTransactions from "../hooks/useScreenMinedTransactions";
 
 const MinedTransactions = () => {
-    const { showAlert, hideAlert } = useAlert();
-    const navigate = useNavigate();
-    const ProofAiService = useProofAiService();
-    const [minedBlock, setMinedBlock] = React.useState([]);
-    const [tempMinedBlock, setTempMinedBlock] = React.useState([]);
-    const [loading, setLoading] = React.useState(false);
-    const [filterValue, setFilterValue] = React.useState("");
-
-    const GetBlocks = async () => {
-        setLoading(true);
-        try {
-            const response = await ProofAiService.getMinedBlocks(filterValue);
-
-            if (response.error) {
-                showAlert(response.error, "error");
-            } else {
-                if (response.blocks && Array.isArray(response.blocks)) {
-                    // Ensure blocks is an array
-                    setMinedBlock(response.blocks);
-                    setTempMinedBlock(response.blocks);
-                } else {
-                    // Set minedBlock to an empty array if blocks is null or not an array
-                    setMinedBlock([]);
-                    showAlert("No mined blocks found.", "success");
-                }
-            }
-        } catch (error) {
-            showAlert("Failed to fetch mined blocks.", "error");
-            setMinedBlock([]); // Safely handle error by resetting minedBlock to an empty array
-        } finally {
-            setLoading(false);
-        }
-    };
-
-
-    React.useEffect(() => {
-        GetBlocks();
-    }, []);
-
-    const handleBack = () => {
-        hideAlert();
-        window.history.back();
-    };
-
-    const handleNavigate = (transactionString) => {
-        const transaction = JSON.parse(transactionString);
-        navigate(`/MinedTransaction`, { state: { transaction } });
-    };
-
-    const handleFilterBlocks = async (e) => {
-
-        if (e.target.value !== "Own Transactions") {
-            setMinedBlock(tempMinedBlock);
-        } else {
-            const response = await ProofAiService.getPublicKey();
-
-            if (response.error) {
-                showAlert(response.error, "error");
-            } else {
-                const publicKey = response.pubKey;
-                const filteredBlocks = minedBlock
-                    .map((block) => {
-                        const filteredTransactions = block.transactions?.filter(
-                            (transaction) => transaction.from === publicKey
-                        );
-                        return { ...block, transactions: filteredTransactions };
-                    })
-                    .filter((block) => block.transactions && block.transactions.length > 0);
-
-                setMinedBlock(filteredBlocks);
-            }
-        }
-    };
+    const {
+        minedBlock,
+        handleBack,
+        handleNavigate,
+        handleFilterBlocks,
+    } = useScreenMinedTransactions();
 
     return (
-        <div style={styles.container}>
-            <div style={styles.headerContainer}>
-                <h1 style={styles.header}>Mined Blocks</h1>
-                <select style={styles.dropdown} onChange={handleFilterBlocks} >
-                    <option value="All Transactions">All Transactions</option>
-                    <option value="Own Transactions">Own Transactions Blocks </option>
-                </select>
+        <div className="min-h-screen  p-4 sm:p-6">
+            {/* Header Section */}
+            <div className="max-w-6xl mx-auto">
+                <div className="mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleBack}
+                            className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white">Mined Blocks</h1>
+                    </div>
+
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                            <Filter className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <select
+                            onChange={handleFilterBlocks}
+                            className="pl-10 pr-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:border-amber-500 focus:ring-2 focus:ring-amber-500 outline-none appearance-none hover:bg-gray-700 transition-colors"
+                        >
+                            <option value="All Transactions">All Transactions</option>
+                            <option value="Own Transactions">Own Transactions</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Blocks Grid */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {minedBlock && minedBlock.length > 0 ? (
+                        minedBlock.map((block) => (
+                            <div
+                                key={block.BlockNum}
+                                className="bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden border border-gray-700 hover:border-amber-500/50 transition-colors"
+                            >
+                                <div className="p-4 border-b border-gray-700">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Box className="w-5 h-5 text-amber-500" />
+                                            <span className="text-lg font-semibold text-white">
+                                                Block {block.blockNum}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-4">
+                                    <select
+                                        onChange={(e) => handleNavigate(e.target.value)}
+                                        className="w-full bg-gray-700 text-white rounded-lg p-2 border border-gray-600 focus:border-amber-500 focus:ring-2 focus:ring-amber-500 outline-none"
+                                    >
+                                        <option value="">Select Transaction</option>
+                                        <option value={JSON.stringify(block)}>Complete Block Data</option>
+                                        {block.transactions && block.transactions.length > 0 ? (
+                                            block.transactions.map((transaction) => (
+                                                <option
+                                                    key={transaction.transactionId}
+                                                    value={JSON.stringify(transaction)}
+                                                    className="py-2"
+                                                >
+                                                    Nonce: {transaction.nonce} | From: {transaction.from?.substring(0, 20)}...
+                                                </option>
+                                            ))
+                                        ) : (
+                                            <option disabled>No transactions</option>
+                                        )}
+                                    </select>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full flex flex-col items-center justify-center p-8 bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700">
+                            <Box className="w-12 h-12 text-gray-600 mb-4" />
+                            <p className="text-gray-400 text-lg">No mined blocks found</p>
+                        </div>
+                    )}
+                </div>
             </div>
-
-            {minedBlock && minedBlock.length > 0 ? (
-                minedBlock.map((block) => (
-                    <select
-                        key={block.BlockNum}
-                        style={styles.Button}
-                        onChange={(e) => handleNavigate(e.target.value)}
-                    >
-                        <option value="">BlockNum: {block.blockNum}</option>
-                        <option key={block.blockNum + "1"} value={JSON.stringify(block)} >Complete Mined Block </option>
-                        {block.transactions && block.transactions.length > 0 ? (
-                            block.transactions.map((transaction) => (
-                                <option
-                                    key={transaction.transactionId}
-                                    value={JSON.stringify(transaction)}
-                                    style={{ whiteSpace: "normal", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}
-                                >Transaction = Nonce: {transaction.nonce}, From: {transaction.from?.substring(0, 45)} ...
-                                </option>
-                            ))
-                        ) : (
-                            <option disabled>No transactions</option>
-                        )}
-                    </select>
-                ))
-            ) : (
-                <p style={{ textAlign: "center", color: "gray" }}>No mined blocks found.</p>
-            )}
-
-            <button
-                style={{
-                    ...styles.button,
-                    width: "10%",
-                    borderWidth: "8px",
-                    border: "2px solid white",
-                    color: "black",
-                    backgroundColor: "rgb(162, 168, 118)",
-                }} onClick={handleBack} >Back
-            </button>
-        </div >
+        </div>
     );
 };
 
 export default MinedTransactions;
-
-const styles = {
-    container: {
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        minHeight: "100vh",
-        backgroundColor: "#f4f6f7",
-        boxSizing: "border-box",
-        padding: "20px",
-    },
-    headerContainer: {
-        display: "flex",
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "20px",
-    },
-    header: {
-        fontSize: "28px",
-        fontWeight: "bold",
-        color: "#333",
-    },
-    dropdown: {
-        padding: "8px 12px",
-        border: "2px solid rgb(190, 206, 70)",
-        borderRadius: "5px",
-        backgroundColor: "#fff",
-        color: "#333",
-        fontSize: "14px",
-        cursor: "pointer",
-    },
-    buttonContainer: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        overflowY: "auto",
-        maxHeight: "470px",
-        marginBottom: "20px",
-        backgroundColor: "rgb(124, 124, 124)",
-        padding: "10px",
-    },
-    button: {
-        padding: "12px",
-        border: "2px solid rgb(57, 96, 111)",
-        borderRadius: "5px",
-        color: "white",
-        backgroundColor: "rgb(41, 41, 43)",
-        cursor: "pointer",
-        fontSize: "16px",
-        fontWeight: "bold",
-        transition: "all 0.3s ease",
-    },
-    Button: {
-        padding: "8px 16px",
-        border: "2px solid #595f66",
-        borderRadius: "5px",
-        backgroundColor: "#333",
-        color: "#fff",
-        cursor: "pointer",
-        fontSize: "14px",
-        transition: "background-color 0.3s ease",
-    },
-};
